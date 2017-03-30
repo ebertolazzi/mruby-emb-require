@@ -39,6 +39,8 @@ MRuby::Gem::Specification.new('mruby-require') do |spec|
   spec.license = 'MIT'
   spec.authors = 'mattn'
   ENV["MRUBY_REQUIRE"] = ""
+  
+  add_dependency 'mruby-bin-mrbc'
 
   is_vc = ENV['OS'] == 'Windows_NT' && cc.command =~ /^cl(\.exe)?$/
   is_mingw = ENV['OS'] == 'Windows_NT' && cc.command =~ /^gcc(.*\.exe)?$/
