@@ -278,7 +278,7 @@ load_mrb_file(mrb_state *mrb, mrb_value filepath)
 
     replace_stop_with_return(mrb, irep);
     proc = mrb_proc_new(mrb, irep);
-    proc->target_class = mrb->object_class;
+    proc->e.target_class = mrb->object_class; // changed RProc with a union
 
     arena_idx = mrb_gc_arena_save(mrb);
     mrb_yield_with_class(mrb, mrb_obj_value(proc), 0, NULL, mrb_top_self(mrb), mrb->object_class);
@@ -302,7 +302,7 @@ mrb_load_irep_data(mrb_state* mrb, const uint8_t* data)
 
     replace_stop_with_return(mrb, irep);
     proc = mrb_proc_new(mrb, irep);
-    proc->target_class = mrb->object_class;
+    proc->e.target_class = mrb->object_class; // changed RProc with a union
 
     ai = mrb_gc_arena_save(mrb);
     mrb_yield_with_class(mrb, mrb_obj_value(proc), 0, NULL, mrb_top_self(mrb), mrb->object_class);
