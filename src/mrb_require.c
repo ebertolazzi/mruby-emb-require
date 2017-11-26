@@ -45,7 +45,9 @@
 #define dlopen(x,y) (void*)LoadLibrary(x)
 #define dlsym(x,y) (void*)GetProcAddress((HMODULE)x,y)
 #define dlclose(x) FreeLibrary((HMODULE)x)
-const char* dlerror() {
+
+const char*
+dlerror() {
   DWORD err = (int) GetLastError();
   static char buf[256];
   if (err == 0) return NULL;
@@ -56,18 +58,19 @@ const char* dlerror() {
     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
     buf,
     sizeof buf,
-    NULL);
+    NULL
+  );
   return buf;
 }
 
 char*
 realpath(const char *path, char *resolved_path) {
-  if (!resolved_path)
-    resolved_path = malloc(PATH_MAX + 1);
+  if (!resolved_path) resolved_path = malloc(PATH_MAX + 1);
   if (!resolved_path) return NULL;
   GetFullPathNameA(path, PATH_MAX, resolved_path, NULL);
   return resolved_path;
 }
+
 #else
 #include <dlfcn.h>
 #endif
@@ -92,25 +95,20 @@ realpath(const char *path, char *resolved_path) {
 #endif
 
 static mrb_value
-envpath_to_mrb_ary(mrb_state *mrb, const char *name)
+envpath_to_mrb_ary( mrb_state *mrb, const char *name )
 {
-  int i;
-  int envlen;
+  int i, envlen;
   mrb_value ary = mrb_ary_new(mrb);
 
   char *env= getenv(name);
-  if (env == NULL) {
-    return ary;
-  }
+  if ( env == NULL ) return ary;
 
   envlen = strlen(env);
-  for (i = 0; i < envlen; i++) {
+  for ( i = 0; i < envlen; ++i ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
     int len;
-    if (end == NULL) {
-      end = env + envlen;
-    }
+    if (end == NULL) end += envlen;
     len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len;
@@ -119,33 +117,29 @@ envpath_to_mrb_ary(mrb_state *mrb, const char *name)
   return ary;
 }
 
-
 static mrb_value
-find_file_check(mrb_state *mrb, mrb_value path, mrb_value fname, mrb_value ext)
+find_file_check( mrb_state *mrb,
+                 mrb_value path,
+                 mrb_value fname,
+                 mrb_value ext)
 {
   FILE *fp;
   char fpath[MAXPATHLEN];
   mrb_value filepath = mrb_str_dup(mrb, path);
   mrb_str_cat2(mrb, filepath, "/");
   mrb_str_buf_append(mrb, filepath, fname);
-  if (!mrb_nil_p(ext)) {
-    mrb_str_buf_append(mrb, filepath, ext);
-  }
 
-  if (mrb_nil_p(filepath)) {
-    return mrb_nil_value();
-  }
+  if (!mrb_nil_p(ext))     mrb_str_buf_append(mrb, filepath, ext);
+  if (mrb_nil_p(filepath)) return mrb_nil_value();
+
   debug("filepath: %s\n", RSTRING_PTR(filepath));
 
-  if (realpath(RSTRING_PTR(filepath), fpath) == NULL) {
-    return mrb_nil_value();
-  }
+  if ( realpath(RSTRING_PTR(filepath), fpath) == NULL ) return mrb_nil_value();
+
   debug("fpath: %s\n", fpath);
 
   fp = fopen(fpath, "r");
-  if (fp == NULL) {
-    return mrb_nil_value();
-  }
+  if (fp == NULL) return mrb_nil_value();
   fclose(fp);
 
   return mrb_str_new_cstr(mrb, fpath);
@@ -190,9 +184,7 @@ find_file(mrb_state *mrb, mrb_value filename)
 #ifdef _WIN32
   if (fname[1] == ':') {
     fp = fopen(fname, "r");
-    if (fp == NULL) {
-      goto not_found;
-    }
+    if (fp == NULL) goto not_found;
     fclose(fp);
     return filename;
   }
@@ -200,9 +192,7 @@ find_file(mrb_state *mrb, mrb_value filename)
   /* when absolute path */
   if (*fname == '/') {
     fp = fopen(fname, "r");
-    if (fp == NULL) {
-      goto not_found;
-    }
+    if (fp == NULL) goto not_found;
     fclose(fp);
     return filename;
   }
@@ -215,14 +205,11 @@ find_file(mrb_state *mrb, mrb_value filename)
 
   for (i = 0; i < RARRAY_LEN(load_path); i++) {
     for (j = 0; j < RARRAY_LEN(exts); j++) {
-      filepath = find_file_check(
-        mrb,
-        mrb_ary_entry(load_path, i),
-        filename,
-        mrb_ary_entry(exts, j));
-      if (!mrb_nil_p(filepath)) {
-        return filepath;
-      }
+      filepath = find_file_check( mrb,
+                                  mrb_ary_entry(load_path, i),
+                                  filename,
+                                  mrb_ary_entry(exts, j) );
+      if (!mrb_nil_p(filepath)) return filepath;
     }
   }
 
@@ -288,7 +275,12 @@ load_mrb_file(mrb_state *mrb, mrb_value filepath)
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
     arena_idx = mrb_gc_arena_save(mrb);
-    mrb_yield_with_class(mrb, mrb_obj_value(proc), 0, NULL, mrb_top_self(mrb), mrb->object_class);
+    mrb_yield_with_class( mrb,
+                          mrb_obj_value(proc),
+                          0,
+                          NULL,
+                          mrb_top_self(mrb),
+                          mrb->object_class );
     mrb_gc_arena_restore(mrb, arena_idx);
   } else if (mrb->exc) {
     // fail to load
@@ -312,7 +304,12 @@ mrb_load_irep_data(mrb_state* mrb, const uint8_t* data)
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
     ai = mrb_gc_arena_save(mrb);
-    mrb_yield_with_class(mrb, mrb_obj_value(proc), 0, NULL, mrb_top_self(mrb), mrb->object_class);
+    mrb_yield_with_class( mrb,
+                          mrb_obj_value(proc),
+                          0,
+                          NULL,
+                          mrb_top_self(mrb),
+                          mrb->object_class );
     mrb_gc_arena_restore(mrb, ai);
   } else if (mrb->exc) {
     // fail to load
@@ -320,42 +317,62 @@ mrb_load_irep_data(mrb_state* mrb, const uint8_t* data)
   }
 }
 
+static
+char *
+file_name_to_string( char const * fname ) {
+  char *ptr, *tmp ;
+  tmp = fname ;
+
+  // search last / or \\ character
+  while (tmp) {
+    if ( (tmp = strchr(ptr, '/' )) ||
+         (tmp = strchr(ptr, '\\')) ) ptr = tmp + 1;
+  }
+
+  // duplicate final string part
+  ptr = strdup(ptr);
+
+  // remove final part after .
+  tmp = strrchr(ptr, '.');
+  if (tmp) *tmp = 0;
+
+  // change - charcter to _
+  for( tmp = ptr ; *tmp ; ++tmp )
+    if (*tmp == '-')
+      *tmp = '_';
+
+  return ptr ;
+}
+
 static void
-load_so_file(mrb_state *mrb, mrb_value filepath)
+load_so_file( mrb_state *mrb, mrb_value filepath )
 {
-  char entry[PATH_MAX] = {0}, *ptr, *top, *tmp;
+  char entry[PATH_MAX] = {0}, *ptr ;
   char entry_irep[PATH_MAX] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
   fn_mrb_gem_init fn;
-  void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
+  void * handle ;
   const uint8_t* data;
-  if (!handle) {
+
+  handle = dlopen( RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL );
+  if ( handle == NULL ) {
+    // DEBUG --------------------------------------------
+    fprintf("load_so_file failed to load: %s\n",filepath);
     mrb_raise(mrb, E_RUNTIME_ERROR, dlerror());
   }
   dlerror(); // clear last error
 
-  tmp = top = ptr = strdup(RSTRING_PTR(filepath));
-  while (tmp) {
-    if ((tmp = strchr(ptr, '/')) || (tmp = strchr(ptr, '\\'))) {
-      ptr = tmp + 1;
-    }
-  }
+  ptr = file_name_to_string( RSTRING_PTR(filepath) ) ;
 
-  tmp = strrchr(ptr, '.');
-  if (tmp) *tmp = 0;
-  tmp = ptr;
-  while (*tmp) {
-    if (*tmp == '-') *tmp = '_';
-    tmp++;
-  }
   snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_init", ptr);
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
-  fn = (fn_mrb_gem_init) dlsym(handle, entry);
+  fn   = (fn_mrb_gem_init) dlsym(handle, entry);
   data = (const uint8_t *)dlsym(handle, entry_irep);
-  free(top);
-  if (!fn && !data) {
-      mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", filepath);
-  }
+
+  free(ptr);
+
+  if (!fn && !data)
+    mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", filepath);
 
   if (fn != NULL) {
     int ai = mrb_gc_arena_save(mrb);
@@ -364,43 +381,26 @@ load_so_file(mrb_state *mrb, mrb_value filepath)
   }
   dlerror(); // clear last error
 
-  if (data != NULL) {
-    mrb_load_irep_data(mrb, data);
-  }
+  if ( data != NULL ) mrb_load_irep_data(mrb, data);
+
 }
 
 static void
-unload_so_file(mrb_state *mrb, mrb_value filepath)
+unload_so_file( mrb_state *mrb, mrb_value filepath )
 {
-  char entry[PATH_MAX] = {0}, *ptr, *top, *tmp;
+  char entry[PATH_MAX] = {0}, *ptr ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
   fn_mrb_gem_final fn;
+
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
-  if (!handle) {
-    return;
-  }
+  if ( handle == NULL ) return;
 
-  tmp = top = ptr = strdup(RSTRING_PTR(filepath));
-  while (tmp) {
-    if ((tmp = strchr(ptr, '/')) || (tmp = strchr(ptr, '\\'))) {
-      ptr = tmp + 1;
-    }
-  }
-
-  tmp = strrchr(ptr, '.');
-  if (tmp) *tmp = 0;
-  tmp = ptr;
-  while (*tmp) {
-    if (*tmp == '-') *tmp = '_';
-    tmp++;
-  }
+  ptr = file_name_to_string( RSTRING_PTR(filepath) ) ;
   snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_final", ptr);
+  free(ptr);
 
   fn = (fn_mrb_gem_final) dlsym(handle, entry);
-  free(top);
-  if (fn == NULL) {
-    return;
-  }
+  if (fn == NULL) return;
 
   fn(mrb);
 }
@@ -508,9 +508,9 @@ static void
 loading_files_add(mrb_state *mrb, mrb_value filepath)
 {
   mrb_value loading_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\"_"));
-  if (mrb_nil_p(loading_files)) {
-    loading_files = mrb_ary_new(mrb);
-  }
+
+  if (mrb_nil_p(loading_files)) loading_files = mrb_ary_new(mrb);
+
   mrb_ary_push(mrb, loading_files, filepath);
 
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\"_"), loading_files);
@@ -533,8 +533,8 @@ mrb_value
 mrb_require(mrb_state *mrb, mrb_value filename)
 {
   mrb_value filepath = find_file(mrb, filename);
-  if (!mrb_nil_p(filepath) && loaded_files_check(mrb, filepath)) {
 
+  if (!mrb_nil_p(filepath) && loaded_files_check(mrb, filepath)) {
     loading_files_add(mrb, filepath);
     load_file(mrb, filepath);
     loaded_files_add(mrb, filepath);
