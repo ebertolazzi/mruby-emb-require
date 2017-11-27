@@ -97,7 +97,7 @@ realpath(const char *path, char *resolved_path) {
 static mrb_value
 envpath_to_mrb_ary( mrb_state *mrb, const char *name )
 {
-  int i, envlen;
+  size_t i, envlen, len ;
   mrb_value ary = mrb_ary_new(mrb);
 
   char *env= getenv(name);
@@ -107,8 +107,7 @@ envpath_to_mrb_ary( mrb_state *mrb, const char *name )
   for ( i = 0; i < envlen; ++i ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
-    int len;
-    if (end == NULL) end += envlen;
+    if ( end == NULL ) end += envlen;
     len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len;
@@ -320,17 +319,18 @@ mrb_load_irep_data(mrb_state* mrb, const uint8_t* data)
 static
 char *
 file_name_to_string( char const * fname ) {
+  char const * tmp0 = fname ;
+  char const * ptr0 ;
   char *ptr, *tmp ;
-  tmp = fname ;
 
   // search last / or \\ character
-  while (tmp) {
-    if ( (tmp = strchr(ptr, '/' )) ||
-         (tmp = strchr(ptr, '\\')) ) ptr = tmp + 1;
+  while (tmp0) {
+    if ( (tmp0 = strchr(ptr, '/' )) ||
+         (tmp0 = strchr(ptr, '\\')) ) ptr0 = tmp0 + 1;
   }
 
   // duplicate final string part
-  ptr = strdup(ptr);
+  ptr = strdup(ptr0);
 
   // remove final part after .
   tmp = strrchr(ptr, '.');
@@ -357,7 +357,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath )
   handle = dlopen( RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL );
   if ( handle == NULL ) {
     // DEBUG --------------------------------------------
-    fprintf("load_so_file failed to load: %s\n",filepath);
+    fprintf("load_so_file failed to load: %s\n",RSTRING_PTR(filepath));
     mrb_raise(mrb, E_RUNTIME_ERROR, dlerror());
   }
   dlerror(); // clear last error
