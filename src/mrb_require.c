@@ -159,34 +159,6 @@ file_basename( char const fname[] ) {
 }
 
 static
-char *
-file_name_to_string( char const fname[] ) {
-  char const * tmp0 ;
-  char const * ptr0 ;
-
-  // search last / or \\ character
-  ptr0 = tmp0 = fname ;
-  while (tmp0) {
-    if ( (tmp0 = strchr(tmp0, '/' )) ||
-         (tmp0 = strchr(tmp0, '\\')) ) ptr0 = tmp0 + 1;
-  }
-
-  // duplicate final string part
-  char * ptr = strdup(ptr0);
-
-  // remove final part after .
-  char * tmp = strrchr(ptr, '.');
-  if (tmp) *tmp = 0;
-
-  // change - charcter to _
-  for( tmp = ptr ; *tmp ; ++tmp )
-    if (*tmp == '-')
-      *tmp = '_';
-
-  return ptr ;
-}
-
-static
 mrb_value
 find_file( mrb_state *mrb, mrb_value filename ) {
 
