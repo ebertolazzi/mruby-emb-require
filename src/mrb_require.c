@@ -325,8 +325,8 @@ file_name_to_string( char const * fname ) {
 
   // search last / or \\ character
   while (tmp0) {
-    if ( (tmp0 = strchr(ptr, '/' )) ||
-         (tmp0 = strchr(ptr, '\\')) ) ptr0 = tmp0 + 1;
+    if ( (tmp0 = strchr(tmp0, '/' )) ||
+         (tmp0 = strchr(tmp0, '\\')) ) ptr0 = tmp0 + 1;
   }
 
   // duplicate final string part
