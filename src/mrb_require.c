@@ -28,72 +28,84 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <setjmp.h>
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
-#ifndef PATH_MAX
-# define PATH_MAX MAX_PATH
-#endif
-#define strdup(x) _strdup(x)
+  #ifndef PATH_MAX
+    #define PATH_MAX MAX_PATH
+  #endif
+  #define strdup(x) _strdup(x)
 #else
-#include <sys/param.h>
-#include <unistd.h>
-#include <libgen.h>
-#include <dlfcn.h>
+  #include <sys/param.h>
+  #include <unistd.h>
+  #include <libgen.h>
+  #include <dlfcn.h>
 #endif
 
 #ifdef _WIN32
-#include <windows.h>
-#define dlopen(x,y) (void*)LoadLibrary(x)
-#define dlsym(x,y) (void*)GetProcAddress((HMODULE)x,y)
-#define dlclose(x) FreeLibrary((HMODULE)x)
-const char* dlerror() {
-  DWORD err = (int) GetLastError();
-  static char buf[256];
-  if (err == 0) return NULL;
-  FormatMessage(
-    FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-    NULL,
-    err,
-    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-    buf,
-    sizeof buf,
-    NULL);
-  return buf;
-}
+  #include <windows.h>
+  char*
+  realpath( char const *path, char *resolved_path ) {
+    if ( resolved_path == NULL ) resolved_path = malloc(PATH_MAX + 1);
+    if ( resolved_path == NULL ) return NULL;
+    GetFullPathNameA(path, PATH_MAX, resolved_path, NULL);
+    return resolved_path;
+  }
 
-char*
-realpath(const char *path, char *resolved_path) {
-  if (!resolved_path)
-    resolved_path = malloc(PATH_MAX + 1);
-  if (!resolved_path) return NULL;
-  GetFullPathNameA(path, PATH_MAX, resolved_path, NULL);
-  return resolved_path;
-}
+  void
+  RaiseError( char const lib[], mrb_state *mrb ) {
+    // Get the error message, if any.
+    DWORD errorMessageID = GetLastError();
+    if ( errorMessageID == 0 ) return ; // No error message has been recorded
+
+    LPSTR messageBuffer = NULL;
+    size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                  NULL,
+                                  errorMessageID,
+                                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                  (LPSTR)&messageBuffer,
+                                  0,
+                                  NULL );
+
+    printf("try to load DLL: %s\n", lib);
+    mrb_raise(mrb, E_RUNTIME_ERROR, messageBuffer) ;
+    // Free the buffer.
+    LocalFree(messageBuffer);
+  }
+
+  void
+  ClearError()
+  {}
+
 #else
-#include <dlfcn.h>
+  #include <dlfcn.h>
+
+  void
+  RaiseError( char const lib[], mrb_state *mrb ) {
+    printf("try to load DLL: %s\n", lib);
+    mrb_raise(mrb, E_RUNTIME_ERROR, dlerror());
+  }
+
+  void
+  ClearError() { dlerror(); } // clear last error
+
 #endif
 
 #if defined(_WIN32)
-# define ENV_SEP ';'
+  #define ENV_SEP ';'
 #else
-# define ENV_SEP ':'
+  #define ENV_SEP ':'
 #endif
 
 #define E_LOAD_ERROR (mrb_class_get(mrb, "ScriptError"))
 
 #ifndef MAXPATHLEN
-#define MAXPATHLEN 1024
-#endif
-
-#if 0
-# include <stdarg.h>
-# define debug(s,...) printf("%s:%d " s, __FILE__, __LINE__,__VA_ARGS__)
-#else
-# define debug(...) ((void)0)
+  #define MAXPATHLEN 1024
 #endif
 
 static
 mrb_value
 envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
+
   mrb_value ary = mrb_ary_new(mrb);
 
   char * env= getenv(name);
@@ -129,11 +141,7 @@ find_file_check( mrb_state *mrb,
   if ( !mrb_nil_p(ext) )     mrb_str_buf_append(mrb, filepath, ext);
   if ( mrb_nil_p(filepath) ) return mrb_nil_value();
 
-  debug("filepath: %s\n", RSTRING_PTR(filepath));
-
   if ( realpath(RSTRING_PTR(filepath), fpath) == NULL ) return mrb_nil_value();
-
-  debug("fpath: %s\n", fpath);
 
   FILE * fp = fopen(fpath, "r");
   if ( fp == NULL ) return mrb_nil_value();
@@ -243,6 +251,7 @@ replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
 static
 void
 load_mrb_file( mrb_state *mrb, mrb_value filepath ) {
+
   char const * fpath = RSTRING_PTR(filepath);
   {
     FILE *fp = fopen(fpath, "rb");
@@ -313,19 +322,36 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   char entry_irep[PATH_MAX] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
+  #ifdef _WIN32
+  HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
+  #else
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
-  if (!handle) mrb_raise(mrb, E_RUNTIME_ERROR, dlerror());
-  dlerror(); // clear last error
+  #endif
+
+  if ( handle == NULL ) RaiseError(RSTRING_PTR(filepath),mrb) ;
+  ClearError() ;
 
   char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
   char * tmp = strrchr(ptr, '.');
   if (tmp) *tmp = 0;
   for ( tmp = ptr ; *tmp ; ++tmp ) { if (*tmp == '-') *tmp = '_' ; }
 
-  snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_init", ptr);
+  snprintf(entry,      sizeof(entry)-1,      "mrb_%s_gem_init",    ptr);
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
-  fn_mrb_gem_init fn = (fn_mrb_gem_init) dlsym(handle, entry);
-  uint8_t const * data = ( uint8_t const *) dlsym(handle, entry_irep);
+
+  #ifdef _WIN32
+  FARPROC addr_entry      = GetProcAddress(handle, entry);
+  FARPROC addr_entry_irep = GetProcAddress(handle, entry_irep);
+  #else
+  void * addr_entry      = dlsym(handle, entry);
+  void * addr_entry_irep = dlsym(handle, entry_irep);
+  #endif
+
+  if (addr_entry      == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry);
+  if (addr_entry_irep == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry_irep);
+
+  fn_mrb_gem_init fn   = (fn_mrb_gem_init) addr_entry;
+  uint8_t const * data = (uint8_t const *) addr_entry_irep;
 
   free(ptr);
 
@@ -336,7 +362,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
     fn(mrb);
     mrb_gc_arena_restore(mrb, ai);
   }
-  dlerror(); // clear last error
+  ClearError(); // clear last error
 
   if ( data != NULL ) mrb_load_irep_data(mrb, data);
 
@@ -349,8 +375,14 @@ unload_so_file(mrb_state *mrb, mrb_value filepath)
   char entry[PATH_MAX] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
+  #ifdef _WIN32
+  HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
+  #else
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
-  if (!handle) return;
+  #endif
+
+  if ( handle == NULL ) RaiseError(RSTRING_PTR(filepath),mrb) ;
+  ClearError() ;
 
   char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
   char * tmp = strrchr(ptr, '.');
@@ -358,7 +390,15 @@ unload_so_file(mrb_state *mrb, mrb_value filepath)
   for ( tmp = ptr ; *tmp ; ++tmp ) { if (*tmp == '-') *tmp = '_'; }
   snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_final", ptr);
 
-  fn_mrb_gem_final fn = (fn_mrb_gem_final) dlsym(handle, entry);
+  #ifdef _WIN32
+  FARPROC addr_entry = GetProcAddress(handle, entry);
+  #else
+  void * addr_entry  = dlsym(handle, entry);
+  #endif
+
+  if (addr_entry == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry);
+  fn_mrb_gem_final fn = (fn_mrb_gem_final) addr_entry ;
+
   free(tmp);
   if ( fn != NULL ) fn(mrb);
 }
@@ -367,6 +407,7 @@ static
 void
 load_rb_file( mrb_state *mrb, mrb_value filepath )
 {
+
   char const * fpath = RSTRING_PTR(filepath);
   {
     FILE *fp = fopen(fpath, "r");
@@ -428,7 +469,6 @@ mrb_f_load( mrb_state *mrb, mrb_value self ) {
 static
 int
 loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
-
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
 
   for ( int i = 0; i < RARRAY_LEN(loaded_files); ++i ) {
