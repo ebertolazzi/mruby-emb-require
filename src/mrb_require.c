@@ -52,13 +52,15 @@
   }
 
   void
-  RaiseError( char const lib[], mrb_state *mrb ) {
+  CheckError( char const lib[], mrb_state *mrb ) {
     // Get the error message, if any.
     DWORD errorMessageID = GetLastError();
     if ( errorMessageID == 0 ) return ; // No error message has been recorded
 
     LPSTR messageBuffer = NULL;
-    size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+    size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                  FORMAT_MESSAGE_FROM_SYSTEM |
+                                  FORMAT_MESSAGE_IGNORE_INSERTS,
                                   NULL,
                                   errorMessageID,
                                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
@@ -66,27 +68,23 @@
                                   0,
                                   NULL );
 
-    printf("try to load DLL: %s\n", lib);
-    mrb_raise(mrb, E_RUNTIME_ERROR, messageBuffer) ;
+    printf("failed to load DLL: %s\n", lib);
+    mrb_raise( mrb, E_RUNTIME_ERROR, messageBuffer ) ;
     // Free the buffer.
     LocalFree(messageBuffer);
   }
-
-  void
-  ClearError()
-  {}
 
 #else
   #include <dlfcn.h>
 
   void
-  RaiseError( char const lib[], mrb_state *mrb ) {
-    printf("try to load DLL: %s\n", lib);
-    mrb_raise(mrb, E_RUNTIME_ERROR, dlerror());
+  CheckError( char const lib[], mrb_state *mrb ) {
+    char const * err = dlerror() ;
+    if ( err != NULL ) {
+      printf("failed to load DLL: %s\n", lib);
+      mrb_raise( mrb, E_RUNTIME_ERROR, dlerror() );
+    }
   }
-
-  void
-  ClearError() { dlerror(); } // clear last error
 
 #endif
 
@@ -196,7 +194,7 @@ find_file( mrb_state *mrb, mrb_value filename ) {
 #ifdef _WIN32
   if (fname[1] == ':') {
     FILE * fp = fopen(fname, "r");
-    if (fp == NULL) goto not_found;
+    if ( fp == NULL ) goto not_found;
     fclose(fp);
     return filename;
   }
@@ -204,7 +202,7 @@ find_file( mrb_state *mrb, mrb_value filename ) {
   /* when absolute path */
   if (*fname == '/') {
     FILE * fp = fopen(fname, "r");
-    if (fp == NULL) goto not_found;
+    if ( fp == NULL ) goto not_found;
     fclose(fp);
     return filename;
   }
@@ -254,7 +252,7 @@ load_mrb_file( mrb_state *mrb, mrb_value filepath ) {
 
   char const * fpath = RSTRING_PTR(filepath);
   {
-    FILE *fp = fopen(fpath, "rb");
+    FILE * fp = fopen(fpath, "rb");
     if (fp == NULL) {
       mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", mrb_str_new_cstr(mrb, fpath));
       return;
@@ -328,8 +326,14 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
-  if ( handle == NULL ) RaiseError(RSTRING_PTR(filepath),mrb) ;
-  ClearError() ;
+  CheckError( RSTRING_PTR(filepath), mrb ) ;
+
+  if ( handle == NULL ) {
+    char message[1024] ;
+    snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
+    printf( "%s", message ) ;
+    mrb_raise(mrb, E_LOAD_ERROR, message );
+  }
 
   char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
   char * tmp = strrchr(ptr, '.');
@@ -338,6 +342,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
 
   snprintf(entry,      sizeof(entry)-1,      "mrb_%s_gem_init",    ptr);
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
+  free(ptr);
 
   #ifdef _WIN32
   FARPROC addr_entry      = GetProcAddress(handle, entry);
@@ -347,24 +352,25 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   void * addr_entry_irep = dlsym(handle, entry_irep);
   #endif
 
-  if (addr_entry      == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry);
-  if (addr_entry_irep == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry_irep);
+  if ( addr_entry == NULL && addr_entry_irep == NULL ) {
+    char message[1024] ;
+    snprintf( message, 1023, "failed to attach %s or %s in library %s\n",
+              entry, entry_irep, filepath );
+    printf( "%s", message ) ;
+    mrb_raise(mrb, E_LOAD_ERROR, message );
+  }
 
-  fn_mrb_gem_init fn   = (fn_mrb_gem_init) addr_entry;
-  uint8_t const * data = (uint8_t const *) addr_entry_irep;
-
-  free(ptr);
-
-  if (!fn && !data) mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", filepath);
-
-  if ( fn != NULL ) {
+  if ( addr_entry != NULL ) {
+    fn_mrb_gem_init fn = (fn_mrb_gem_init) addr_entry;
     int ai = mrb_gc_arena_save(mrb);
     fn(mrb);
     mrb_gc_arena_restore(mrb, ai);
   }
-  ClearError(); // clear last error
 
-  if ( data != NULL ) mrb_load_irep_data(mrb, data);
+  if ( addr_entry_irep != NULL ) {
+    uint8_t const * data = (uint8_t const *) addr_entry_irep;
+    mrb_load_irep_data(mrb, data);
+  }
 
 }
 
@@ -381,14 +387,21 @@ unload_so_file(mrb_state *mrb, mrb_value filepath)
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
-  if ( handle == NULL ) RaiseError(RSTRING_PTR(filepath),mrb) ;
-  ClearError() ;
+  CheckError( RSTRING_PTR(filepath), mrb ) ;
+
+  if ( handle == NULL ) {
+    char message[1024] ;
+    snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
+    printf( "%s", message ) ;
+    mrb_raise(mrb, E_LOAD_ERROR, message );
+  }
 
   char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
   char * tmp = strrchr(ptr, '.');
   if (tmp) *tmp = 0;
   for ( tmp = ptr ; *tmp ; ++tmp ) { if (*tmp == '-') *tmp = '_'; }
   snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_final", ptr);
+  free(tmp);
 
   #ifdef _WIN32
   FARPROC addr_entry = GetProcAddress(handle, entry);
@@ -396,11 +409,12 @@ unload_so_file(mrb_state *mrb, mrb_value filepath)
   void * addr_entry  = dlsym(handle, entry);
   #endif
 
-  if (addr_entry == NULL) mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry);
-  fn_mrb_gem_final fn = (fn_mrb_gem_final) addr_entry ;
-
-  free(tmp);
-  if ( fn != NULL ) fn(mrb);
+  if ( addr_entry == NULL ) {
+    mrb_raisef(mrb, E_LOAD_ERROR, "can't attach %S", entry);
+  } else {
+    fn_mrb_gem_final fn = (fn_mrb_gem_final) addr_entry ;
+    fn(mrb);
+  }
 }
 
 static
