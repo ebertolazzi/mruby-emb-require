@@ -168,6 +168,8 @@ static
 mrb_value
 find_file( mrb_state *mrb, mrb_value filename ) {
 
+  printf( "require:find_file: %s\n", RSTRING_PTR(filename)) ;
+
   mrb_value filepath  = mrb_nil_value();
   mrb_value load_path = mrb_obj_dup(mrb, mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$:")));
 
@@ -250,6 +252,8 @@ static
 void
 load_mrb_file( mrb_state *mrb, mrb_value filepath ) {
 
+  printf( "require:load_mrb_file\n") ;
+
   char const * fpath = RSTRING_PTR(filepath);
   {
     FILE * fp = fopen(fpath, "rb");
@@ -290,6 +294,9 @@ load_mrb_file( mrb_state *mrb, mrb_value filepath ) {
 static
 void
 mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
+
+  printf( "require:mrb_load_irep_data\n") ;
+
   int ai = mrb_gc_arena_save(mrb);
   mrb_irep *irep = mrb_read_irep(mrb,data);
   mrb_gc_arena_restore(mrb,ai);
@@ -382,6 +389,8 @@ static
 void
 unload_so_file(mrb_state *mrb, mrb_value filepath) {
 
+  printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
+
   char entry[PATH_MAX] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
@@ -424,6 +433,9 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
 static
 void
 load_rb_file( mrb_state *mrb, mrb_value filepath ) {
+
+  printf( "require:load_rb_file: %s\n", RSTRING_PTR(filepath)) ;
+
   char const * fpath = RSTRING_PTR(filepath);
   {
     FILE *fp = fopen(fpath, "r");
@@ -468,6 +480,9 @@ load_file( mrb_state *mrb, mrb_value filepath ) {
 
 mrb_value
 mrb_load( mrb_state *mrb, mrb_value filename ) {
+
+  printf("mrb_load\n");
+
   mrb_value filepath = find_file(mrb, filename);
   load_file(mrb, filepath);
   return mrb_true_value(); // TODO: ??
@@ -475,6 +490,9 @@ mrb_load( mrb_state *mrb, mrb_value filename ) {
 
 mrb_value
 mrb_f_load( mrb_state *mrb, mrb_value self ) {
+
+  printf("mrb_f_load\n");
+
   mrb_value filename;
   mrb_get_args(mrb, "o", &filename);
   if (mrb_type(filename) != MRB_TT_STRING) {
@@ -487,6 +505,9 @@ mrb_f_load( mrb_state *mrb, mrb_value self ) {
 static
 int
 loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
+
+  printf("loaded_files_check\n");
+
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
 
   for ( int i = 0; i < RARRAY_LEN(loaded_files); ++i ) {
@@ -529,6 +550,9 @@ loaded_files_add( mrb_state *mrb, mrb_value filepath ) {
 
 mrb_value
 mrb_require( mrb_state *mrb, mrb_value filename ) {
+
+  printf("mrb_require\n");
+
   mrb_value filepath = find_file(mrb, filename);
   if ( !mrb_nil_p(filepath) && loaded_files_check(mrb, filepath) ) {
     loading_files_add(mrb, filepath);
@@ -541,6 +565,9 @@ mrb_require( mrb_state *mrb, mrb_value filename ) {
 
 mrb_value
 mrb_f_require( mrb_state *mrb, mrb_value self ) {
+
+  printf("mrb_f_require\n");
+
   mrb_value filename;
   mrb_get_args(mrb, "o", &filename);
   if (mrb_type(filename) != MRB_TT_STRING) {
@@ -553,6 +580,9 @@ mrb_f_require( mrb_state *mrb, mrb_value self ) {
 static
 mrb_value
 mrb_init_load_path( mrb_state *mrb ) {
+
+  printf("mrb_init_load_path\n");
+
   mrb_value    ary = envpath_to_mrb_ary(mrb, "MRBLIB");
   char const * env = getenv("MRBGEMS_ROOT");
   if (env)
