@@ -56,6 +56,7 @@
     // Get the error message, if any.
     DWORD errorMessageID = GetLastError();
     if ( errorMessageID == 0 ) return ; // No error message has been recorded
+    printf("errorMessageID: %ld\n", errorMessageID);
 
     LPSTR messageBuffer = NULL;
     size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER |
