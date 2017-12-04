@@ -168,7 +168,7 @@ static
 mrb_value
 find_file( mrb_state *mrb, mrb_value filename ) {
 
-  printf( "require:find_file: %s\n", RSTRING_PTR(filename)) ;
+  //printf( "require:find_file: %s\n", RSTRING_PTR(filename)) ;
 
   mrb_value filepath  = mrb_nil_value();
   mrb_value load_path = mrb_obj_dup(mrb, mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$:")));
@@ -252,7 +252,7 @@ static
 void
 load_mrb_file( mrb_state *mrb, mrb_value filepath ) {
 
-  printf( "require:load_mrb_file\n") ;
+  //printf( "require:load_mrb_file\n") ;
 
   char const * fpath = RSTRING_PTR(filepath);
   {
@@ -295,7 +295,7 @@ static
 void
 mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
 
-  printf( "require:mrb_load_irep_data\n") ;
+  //printf( "require:mrb_load_irep_data\n") ;
 
   int ai = mrb_gc_arena_save(mrb);
   mrb_irep *irep = mrb_read_irep(mrb,data);
@@ -337,6 +337,8 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
 
   CheckError( RSTRING_PTR(filepath), mrb ) ;
 
+  printf( "require:load_so_file valid handle\n") ;
+
   if ( handle == NULL ) {
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
@@ -352,6 +354,8 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   snprintf(entry,      sizeof(entry)-1,      "mrb_%s_gem_init",    ptr);
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
   free(ptr);
+
+  printf( "require:load_so_file attach entry\n") ;
 
   #ifdef _WIN32
   FARPROC addr_entry      = GetProcAddress(handle, entry);
@@ -389,7 +393,7 @@ static
 void
 unload_so_file(mrb_state *mrb, mrb_value filepath) {
 
-  printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
+  //printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
 
   char entry[PATH_MAX] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
@@ -434,7 +438,7 @@ static
 void
 load_rb_file( mrb_state *mrb, mrb_value filepath ) {
 
-  printf( "require:load_rb_file: %s\n", RSTRING_PTR(filepath)) ;
+  //printf( "require:load_rb_file: %s\n", RSTRING_PTR(filepath)) ;
 
   char const * fpath = RSTRING_PTR(filepath);
   {
@@ -462,7 +466,7 @@ void
 load_file( mrb_state *mrb, mrb_value filepath ) {
   char const * ext = strrchr(RSTRING_PTR(filepath), '.');
 
-  printf( "require:load_file: %s\n", RSTRING_PTR(filepath)) ;
+  //printf( "require:load_file: %s\n", RSTRING_PTR(filepath)) ;
 
   if (!ext || strcmp(ext, ".rb") == 0) {
     load_rb_file(mrb, filepath);
@@ -481,7 +485,7 @@ load_file( mrb_state *mrb, mrb_value filepath ) {
 mrb_value
 mrb_load( mrb_state *mrb, mrb_value filename ) {
 
-  printf("mrb_load\n");
+  //printf("mrb_load\n");
 
   mrb_value filepath = find_file(mrb, filename);
   load_file(mrb, filepath);
@@ -491,7 +495,7 @@ mrb_load( mrb_state *mrb, mrb_value filename ) {
 mrb_value
 mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
-  printf("mrb_f_load\n");
+  //printf("mrb_f_load\n");
 
   mrb_value filename;
   mrb_get_args(mrb, "o", &filename);
@@ -506,7 +510,7 @@ static
 int
 loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
 
-  printf("loaded_files_check\n");
+  //printf("loaded_files_check\n");
 
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
 
@@ -551,7 +555,7 @@ loaded_files_add( mrb_state *mrb, mrb_value filepath ) {
 mrb_value
 mrb_require( mrb_state *mrb, mrb_value filename ) {
 
-  printf("mrb_require\n");
+  //printf("mrb_require\n");
 
   mrb_value filepath = find_file(mrb, filename);
   if ( !mrb_nil_p(filepath) && loaded_files_check(mrb, filepath) ) {
@@ -566,7 +570,7 @@ mrb_require( mrb_state *mrb, mrb_value filename ) {
 mrb_value
 mrb_f_require( mrb_state *mrb, mrb_value self ) {
 
-  printf("mrb_f_require\n");
+  //printf("mrb_f_require\n");
 
   mrb_value filename;
   mrb_get_args(mrb, "o", &filename);
@@ -581,7 +585,7 @@ static
 mrb_value
 mrb_init_load_path( mrb_state *mrb ) {
 
-  printf("mrb_init_load_path\n");
+  //printf("mrb_init_load_path\n");
 
   mrb_value    ary = envpath_to_mrb_ary(mrb, "MRBLIB");
   char const * env = getenv("MRBGEMS_ROOT");
