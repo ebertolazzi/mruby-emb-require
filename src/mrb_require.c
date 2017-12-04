@@ -320,6 +320,8 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   char entry_irep[PATH_MAX] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
+  printf( "require:load_so_file: %s\n", RSTRING_PTR(filepath)) ;
+
   #ifdef _WIN32
   HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
   #else
@@ -378,8 +380,8 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
 
 static
 void
-unload_so_file(mrb_state *mrb, mrb_value filepath)
-{
+unload_so_file(mrb_state *mrb, mrb_value filepath) {
+
   char entry[PATH_MAX] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
@@ -421,9 +423,7 @@ unload_so_file(mrb_state *mrb, mrb_value filepath)
 
 static
 void
-load_rb_file( mrb_state *mrb, mrb_value filepath )
-{
-
+load_rb_file( mrb_state *mrb, mrb_value filepath ) {
   char const * fpath = RSTRING_PTR(filepath);
   {
     FILE *fp = fopen(fpath, "r");
@@ -449,6 +449,8 @@ static
 void
 load_file( mrb_state *mrb, mrb_value filepath ) {
   char const * ext = strrchr(RSTRING_PTR(filepath), '.');
+
+  printf( "require:load_file: %s\n", RSTRING_PTR(filepath)) ;
 
   if (!ext || strcmp(ext, ".rb") == 0) {
     load_rb_file(mrb, filepath);
