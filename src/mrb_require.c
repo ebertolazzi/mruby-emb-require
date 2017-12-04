@@ -361,6 +361,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry != NULL ) {
+    printf( "Attach %s from library %s\n", entry, filepath );
     fn_mrb_gem_init fn = (fn_mrb_gem_init) addr_entry;
     int ai = mrb_gc_arena_save(mrb);
     fn(mrb);
@@ -368,6 +369,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry_irep != NULL ) {
+    printf( "Attach %s from library %s\n", entry_irep, filepath );
     uint8_t const * data = (uint8_t const *) addr_entry_irep;
     mrb_load_irep_data(mrb, data);
   }
