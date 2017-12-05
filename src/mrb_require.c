@@ -336,13 +336,8 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
-  printf( "require:load_so_file check handle\n") ;
-
-  CheckError( RSTRING_PTR(filepath), mrb ) ;
-
-  printf( "require:load_so_file valid handle\n") ;
-
   if ( handle == NULL ) {
+    CheckError( RSTRING_PTR(filepath), mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
     printf( "%s", message ) ;
@@ -407,9 +402,8 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
   void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
-  CheckError( RSTRING_PTR(filepath), mrb ) ;
-
   if ( handle == NULL ) {
+    CheckError( RSTRING_PTR(filepath), mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
     printf( "%s", message ) ;
