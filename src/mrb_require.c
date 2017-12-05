@@ -328,7 +328,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   char entry_irep[PATH_MAX] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
-  printf( "require:load_so_file: %s\n", RSTRING_PTR(filepath)) ;
+  printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
 
   #ifdef _WIN32
   HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
@@ -337,6 +337,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   #endif
 
   if ( handle == NULL ) {
+    printf( "require:load_so_file: null handle, check error\n" ) ;
     CheckError( RSTRING_PTR(filepath), mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
