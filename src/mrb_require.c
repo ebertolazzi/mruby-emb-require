@@ -328,7 +328,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   char entry_irep[PATH_MAX] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
-  printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
+  //printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
 
   #ifdef _WIN32
   HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
@@ -337,7 +337,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   #endif
 
   if ( handle == NULL ) {
-    printf( "require:load_so_file: null handle, check error\n" ) ;
+    //printf( "require:load_so_file: null handle, check error\n" ) ;
     CheckError( RSTRING_PTR(filepath), mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
@@ -354,7 +354,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
   free(ptr);
 
-  printf( "require:load_so_file attach entry\n") ;
+  //printf( "require:load_so_file attach entry\n") ;
 
   #ifdef _WIN32
   FARPROC addr_entry      = GetProcAddress(handle, entry);
@@ -373,7 +373,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry != NULL ) {
-    printf( "Attach %s from library %s\n", entry, filepath );
+    //printf( "Attach %s from library %s\n", entry, filepath );
     fn_mrb_gem_init fn = (fn_mrb_gem_init) addr_entry;
     int ai = mrb_gc_arena_save(mrb);
     fn(mrb);
@@ -381,7 +381,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry_irep != NULL ) {
-    printf( "Attach %s from library %s\n", entry_irep, filepath );
+    //printf( "Attach %s from library %s\n", entry_irep, filepath );
     uint8_t const * data = (uint8_t const *) addr_entry_irep;
     mrb_load_irep_data(mrb, data);
   }
