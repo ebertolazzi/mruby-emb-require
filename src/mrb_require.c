@@ -30,9 +30,6 @@
 #include <setjmp.h>
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
-  #ifndef PATH_MAX
-    #define PATH_MAX MAX_PATH
-  #endif
   #define strdup(x) _strdup(x)
 #else
   #include <sys/param.h>
@@ -42,13 +39,20 @@
 #endif
 
 #ifdef _WIN32
+
   #include <windows.h>
-  char*
-  realpath( char const *path, char *resolved_path ) {
-    if ( resolved_path == NULL ) resolved_path = malloc(PATH_MAX + 1);
-    if ( resolved_path == NULL ) return NULL;
-    GetFullPathNameA(path, PATH_MAX, resolved_path, NULL);
-    return resolved_path;
+
+  bool
+  ToFullPath( char const path[],
+              char       full_path[],
+              unsigned   max_len ) {
+    return GetFullPathNameA( path, max_len, full_path, NULL) > 0 ;
+  }
+
+  bool
+  GetEnv( char const envName[], char out[], unsigned len ) {
+    DWORD n = GetEnvironmentVariable(envName,out,DWORD(len));
+    return n > 0 && n < DWORD(len) ;
   }
 
   void
@@ -78,6 +82,24 @@
 #else
   #include <dlfcn.h>
 
+  bool
+  GetEnv( char const envName[], char out[], unsigned len ) {
+    char const * ptr = getenv( envName ) ;
+    bool ok = ptr != NULL && strlen( ptr ) < len ;
+    if ( ok ) strcpy( out, ptr ) ;
+    return ok ;
+  }
+
+  bool
+  ToFullPath( char const path[],
+              char       full_path[],
+              unsigned   max_len ) {
+    char buffer[PATH_MAX] ;
+    if ( realpath(path, buffer) == nullptr ) return false ;
+    strncpy( full_path, buffer, max_len ) ;
+    return strlen(buffer) <= max_len ;
+  }
+
   void
   CheckError( char const lib[], mrb_state *mrb ) {
     char const * err = dlerror() ;
@@ -101,14 +123,18 @@
   #define MAXPATHLEN 1024
 #endif
 
+#ifndef MAXENVLEN
+  #define MAXENVLEN 1024
+#endif
+
 static
 mrb_value
 envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
 
   mrb_value ary = mrb_ary_new(mrb);
 
-  char * env= getenv(name);
-  if ( env == NULL ) return ary;
+  char env[MAXENVLEN] ;
+  if ( !GetEnv( name, env, MAXENVLEN ) ) return ary ;
 
   size_t envlen = strlen(env);
   size_t i      = 0 ;
@@ -140,7 +166,7 @@ find_file_check( mrb_state *mrb,
   if ( !mrb_nil_p(ext) )     mrb_str_buf_append(mrb, filepath, ext);
   if ( mrb_nil_p(filepath) ) return mrb_nil_value();
 
-  if ( realpath(RSTRING_PTR(filepath), fpath) == NULL ) return mrb_nil_value();
+  if ( !ToFullPath( RSTRING_PTR(filepath),fpath,MAXPATHLEN) ) return mrb_nil_value();
 
   FILE * fp = fopen(fpath, "r");
   if ( fp == NULL ) return mrb_nil_value();
@@ -324,21 +350,28 @@ mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
 static
 void
 load_so_file( mrb_state *mrb, mrb_value filepath ) {
-  char entry[PATH_MAX]      = {0};
-  char entry_irep[PATH_MAX] = {0};
+  char entry[MAX_PATH]      = {0};
+  char entry_irep[MAX_PATH] = {0};
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
   printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
 
+  char fullpath[MAXPATHLEN];
+  if (!ToFullPath( RSTRING_PTR(filepath),fullpath,MAXPATHLEN) ) {
+    char message[1024] ;
+    snprintf( message, 1023, "failed to convert %s, to full path\n", RSTRING_PTR(filepath) );
+    mrb_raise(mrb, E_LOAD_ERROR, message );
+  }
+
   #ifdef _WIN32
-  HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
+  HMODULE handle = LoadLibrary(fullpath);
   #else
-  void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
+  void * handle = dlopen(fullpath, RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
   if ( handle == NULL ) {
-    printf( "require:load_so_file: null handle, check error\n" ) ;
-    CheckError( RSTRING_PTR(filepath), mrb ) ;
+    //printf( "require:load_so_file: null handle, check error\n" ) ;
+    CheckError( fullpath, mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
     printf( "%s", message ) ;
@@ -373,7 +406,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry != NULL ) {
-    printf( "Attach %s from library %s\n", entry, filepath );
+    //printf( "Attach %s from library %s\n", entry, filepath );
     fn_mrb_gem_init fn = (fn_mrb_gem_init) addr_entry;
     int ai = mrb_gc_arena_save(mrb);
     fn(mrb);
@@ -381,7 +414,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
   }
 
   if ( addr_entry_irep != NULL ) {
-    printf( "Attach %s from library %s\n", entry_irep, filepath );
+    //printf( "Attach %s from library %s\n", entry_irep, filepath );
     uint8_t const * data = (uint8_t const *) addr_entry_irep;
     mrb_load_irep_data(mrb, data);
   }
@@ -394,17 +427,24 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
 
   //printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
 
-  char entry[PATH_MAX] = {0} ;
+  char entry[MAX_PATH] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
+  char fullpath[MAXPATHLEN];
+  if (!ToFullPath( RSTRING_PTR(filepath),fullpath,MAXPATHLEN) ) {
+    char message[1024] ;
+    snprintf( message, 1023, "failed to convert %s, to full path\n", RSTRING_PTR(filepath) );
+    mrb_raise(mrb, E_LOAD_ERROR, message );
+  }
+
   #ifdef _WIN32
-  HMODULE handle = LoadLibrary(RSTRING_PTR(filepath));
+  HMODULE handle = LoadLibrary(fullpath);
   #else
-  void * handle = dlopen(RSTRING_PTR(filepath), RTLD_LAZY|RTLD_GLOBAL);
+  void * handle = dlopen(fullpath, RTLD_LAZY|RTLD_GLOBAL);
   #endif
 
   if ( handle == NULL ) {
-    CheckError( RSTRING_PTR(filepath), mrb ) ;
+    CheckError( fullpath, mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
     printf( "%s", message ) ;
@@ -585,9 +625,10 @@ mrb_init_load_path( mrb_state *mrb ) {
 
   //printf("mrb_init_load_path\n");
 
-  mrb_value    ary = envpath_to_mrb_ary(mrb, "MRBLIB");
-  char const * env = getenv("MRBGEMS_ROOT");
-  if (env)
+  mrb_value ary = envpath_to_mrb_ary(mrb, "MRBLIB");
+
+  char env[MAXENVLEN] ;
+  if ( GetEnv( "MRBGEMS_ROOT", env, MAXENVLEN ) )
     mrb_ary_push(mrb, ary, mrb_str_new_cstr(mrb, env));
 #ifdef MRBGEMS_ROOT
   else
@@ -607,8 +648,8 @@ mrb_mruby_require_gem_init( mrb_state* mrb ) {
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$:"), mrb_init_load_path(mrb));
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), mrb_ary_new(mrb));
 
-  char const * env = getenv("MRUBY_REQUIRE");
-  if ( env != NULL ) {
+  char env[MAXENVLEN] ;
+  if ( GetEnv( "MRUBY_REQUIRE", env, MAXENVLEN ) )
     size_t envlen = strlen(env);
     size_t i      = 0 ;
     while ( i < envlen ) {
