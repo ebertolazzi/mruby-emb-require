@@ -34,6 +34,7 @@
 
 #include "opcode.h"
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <sys/types.h>
@@ -96,6 +97,10 @@
 #else
   #include <dlfcn.h>
 
+  #ifndef MAX_PATH
+    #define MAX_PATH PATH_MAX
+  #endif
+
   static
   bool
   GetEnv( char const envName[], char out[], unsigned len ) {
@@ -111,7 +116,7 @@
               char       full_path[],
               unsigned   max_len ) {
     char buffer[PATH_MAX] ;
-    if ( realpath(path, buffer) == nullptr ) return false ;
+    if ( realpath(path, buffer) == NULL ) return false ;
     strncpy( full_path, buffer, max_len ) ;
     return strlen(buffer) <= max_len ;
   }
@@ -153,13 +158,13 @@ envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
   char env[MAXENVLEN] ;
   if ( !GetEnv( name, env, MAXENVLEN ) ) return ary ;
 
-  size_t envlen = strlen(env);
-  size_t i      = 0 ;
+  unsigned envlen = unsigned(strlen(env));
+  unsigned i      = 0 ;
   while ( i < envlen ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
     if ( end == NULL ) end = env + envlen;
-    size_t len = end - ptr;
+    unsigned len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len+1;
   }
@@ -369,6 +374,7 @@ void
 load_so_file( mrb_state *mrb, mrb_value filepath ) {
   char entry[MAX_PATH]      = {0};
   char entry_irep[MAX_PATH] = {0};
+
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
   printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
@@ -443,7 +449,6 @@ void
 unload_so_file(mrb_state *mrb, mrb_value filepath) {
 
   //printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
-
   char entry[MAX_PATH] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
@@ -537,6 +542,7 @@ load_file( mrb_state *mrb, mrb_value filepath ) {
   }
 }
 
+static
 mrb_value
 mrb_load( mrb_state *mrb, mrb_value filename ) {
 
@@ -547,6 +553,7 @@ mrb_load( mrb_state *mrb, mrb_value filename ) {
   return mrb_true_value(); // TODO: ??
 }
 
+static
 mrb_value
 mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
@@ -607,6 +614,7 @@ loaded_files_add( mrb_state *mrb, mrb_value filepath ) {
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), loaded_files);
 }
 
+static
 mrb_value
 mrb_require( mrb_state *mrb, mrb_value filename ) {
 
@@ -667,13 +675,13 @@ mrb_mruby_require_gem_init( mrb_state* mrb ) {
 
   char env[MAXENVLEN] ;
   if ( GetEnv( "MRUBY_REQUIRE", env, MAXENVLEN ) )
-    size_t envlen = strlen(env);
-    size_t i      = 0 ;
+    unsigned envlen = unsigned(strlen(env));
+    unsigned i      = 0 ;
     while ( i < envlen ) {
       char *ptr = env + i;
       char *end = strchr(ptr, ',');
       if (end == NULL) end = env + envlen;
-      size_t len = end - ptr;
+      unsigned len = end - ptr;
       mrb_require(mrb, mrb_str_new(mrb, ptr, len));
       i += len+1;
     }
