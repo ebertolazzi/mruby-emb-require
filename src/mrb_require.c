@@ -55,7 +55,7 @@
   #include <windows.h>
 
   static
-  bool
+  int
   relativeToFullPath( char const path[],
                       char       full_path[],
                       unsigned   max_len ) {
@@ -63,10 +63,10 @@
   }
 
   static
-  bool
+  int
   GetEnvironmentToString( char const envName[], char out[], unsigned len ) {
-    DWORD n = GetEnvironmentVariable(envName,out,DWORD(len));
-    return n > 0 && n < DWORD(len) ;
+    DWORD n = GetEnvironmentVariable(envName,out,(DWORD)len);
+    return n > 0 && n < (DWORD)len ;
   }
 
   static
@@ -247,7 +247,7 @@ find_file( mrb_state *mrb, mrb_value mrb_filename ) {
     FILE * fp = fopen(fname, "r");
     if ( fp == NULL ) goto not_found;
     fclose(fp);
-    return filename;
+    return mrb_filename;
   }
 #endif
   /* when absolute path */
