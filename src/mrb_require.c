@@ -158,13 +158,13 @@ envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
   char env[MAXENVLEN] ;
   if ( !GetEnv( name, env, MAXENVLEN ) ) return ary ;
 
-  unsigned envlen = unsigned(strlen(env));
-  unsigned i      = 0 ;
+  long envlen = strlen(env);
+  long i      = 0 ;
   while ( i < envlen ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
     if ( end == NULL ) end = env + envlen;
-    unsigned len = end - ptr;
+    long len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len+1;
   }
@@ -371,18 +371,20 @@ mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
 
 static
 void
-load_so_file( mrb_state *mrb, mrb_value filepath ) {
+load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   char entry[MAX_PATH]      = {0};
   char entry_irep[MAX_PATH] = {0};
 
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
+  
+  char const * filepath = RSTRING_PTR(mrb_filepath) ;
 
-  printf( "require:load_so_file: `%s`\n", RSTRING_PTR(filepath)) ;
+  printf( "require:load_so_file: `%s`\n", filepath) ;
 
   char fullpath[MAXPATHLEN];
-  if (!ToFullPath( RSTRING_PTR(filepath),fullpath,MAXPATHLEN) ) {
+  if ( !ToFullPath( filepath, fullpath, MAXPATHLEN) ) {
     char message[1024] ;
-    snprintf( message, 1023, "failed to convert %s, to full path\n", RSTRING_PTR(filepath) );
+    snprintf( message, 1023, "failed to convert %s, to full path\n", filepath );
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
@@ -401,7 +403,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
-  char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
+  char * ptr = strdup(file_basename(filepath)) ;
   char * tmp = strrchr(ptr, '.');
   if (tmp) *tmp = 0;
   for ( tmp = ptr ; *tmp ; ++tmp ) { if (*tmp == '-') *tmp = '_' ; }
@@ -446,16 +448,17 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
 
 static
 void
-unload_so_file(mrb_state *mrb, mrb_value filepath) {
+unload_so_file(mrb_state *mrb, mrb_value mrb_filepath) {
 
   //printf( "require:unload_so_file: %s\n", RSTRING_PTR(filepath)) ;
   char entry[MAX_PATH] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
+  char const * filepath = RSTRING_PTR(filepath) ;
   char fullpath[MAXPATHLEN];
-  if (!ToFullPath( RSTRING_PTR(filepath),fullpath,MAXPATHLEN) ) {
+  if ( !ToFullPath( filepath, fullpath, MAXPATHLEN) ) {
     char message[1024] ;
-    snprintf( message, 1023, "failed to convert %s, to full path\n", RSTRING_PTR(filepath) );
+    snprintf( message, 1023, "failed to convert %s, to full path\n", filepath );
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
@@ -473,7 +476,7 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
-  char * ptr = strdup(file_basename(RSTRING_PTR(filepath))) ;
+  char * ptr = strdup(file_basename( filepath )) ;
   char * tmp = strrchr(ptr, '.');
   if (tmp) *tmp = 0;
   for ( tmp = ptr ; *tmp ; ++tmp ) { if (*tmp == '-') *tmp = '_'; }
@@ -496,15 +499,15 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
 
 static
 void
-load_rb_file( mrb_state *mrb, mrb_value filepath ) {
+load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   //printf( "require:load_rb_file: %s\n", RSTRING_PTR(filepath)) ;
 
-  char const * fpath = RSTRING_PTR(filepath);
+  char const * fpath = RSTRING_PTR(mrb_filepath);
   {
     FILE *fp = fopen(fpath, "r");
     if (fp == NULL) {
-      mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", filepath);
+      mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", fpath);
       return;
     }
     fclose(fp);
@@ -512,9 +515,9 @@ load_rb_file( mrb_state *mrb, mrb_value filepath ) {
 
   mrbc_context * mrbc_ctx = mrbc_context_new(mrb);
 
-  FILE * file = fopen((const char*)fpath, "r");
+  FILE * file = fopen( fpath, "r");
   mrbc_filename(mrb, mrbc_ctx, fpath);
-  mrb_gv_set(mrb, mrb_intern(mrb, "$0", 2), filepath);
+  mrb_gv_set(mrb, mrb_intern(mrb, "$0", 2), mrb_filepath);
   mrb_load_file_cxt(mrb, file, mrbc_ctx);
   fclose(file);
 
@@ -523,33 +526,34 @@ load_rb_file( mrb_state *mrb, mrb_value filepath ) {
 
 static
 void
-load_file( mrb_state *mrb, mrb_value filepath ) {
-  char const * ext = strrchr(RSTRING_PTR(filepath), '.');
+load_file( mrb_state *mrb, mrb_value mrb_filepath ) {
+  char const * filepath = RSTRING_PTR(mrb_filepath);
+  char const * ext      = strrchr(filepath, '.');
 
   //printf( "require:load_file: %s\n", RSTRING_PTR(filepath)) ;
 
   if (!ext || strcmp(ext, ".rb") == 0) {
-    load_rb_file(mrb, filepath);
+    load_rb_file(mrb, mrb_filepath);
   } else if (strcmp(ext, ".mrb") == 0) {
-    load_mrb_file(mrb, filepath);
+    load_mrb_file(mrb, mrb_filepath);
   } else if (strcmp(ext, ".so") == 0 || 
              strcmp(ext, ".dll") == 0 || 
              strcmp(ext, ".dylib") == 0) {
-    load_so_file(mrb, filepath);
+    load_so_file(mrb, mrb_filepath);
   } else {
-    mrb_raisef(mrb, E_LOAD_ERROR, "Filepath '%S' has invalid extension.", filepath);
+    mrb_raisef(mrb, E_LOAD_ERROR, "Filepath '%S' has invalid extension.", mrb_filepath);
     return;
   }
 }
 
 static
 mrb_value
-mrb_load( mrb_state *mrb, mrb_value filename ) {
+mrb_load( mrb_state *mrb, mrb_value mrb_filename ) {
 
   //printf("mrb_load\n");
 
-  mrb_value filepath = find_file(mrb, filename);
-  load_file(mrb, filepath);
+  mrb_value filepath = find_file(mrb, mrb_filename);
+  load_file(mrb, mrb_filename);
   return mrb_true_value(); // TODO: ??
 }
 
@@ -570,7 +574,7 @@ mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
 static
 int
-loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
+loaded_files_check( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   //printf("loaded_files_check\n");
 
@@ -579,7 +583,7 @@ loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
   for ( int i = 0; i < RARRAY_LEN(loaded_files); ++i ) {
     if ( mrb_str_cmp( mrb,
                       mrb_ary_entry(loaded_files, i),
-                      filepath ) == 0 ) {
+                      mrb_filepath ) == 0 ) {
       return 0;
     }
   }
@@ -589,7 +593,7 @@ loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
   for ( int i = 0; i < RARRAY_LEN(loading_files); ++i ) {
     if ( mrb_str_cmp( mrb,
                       mrb_ary_entry(loading_files, i),
-                      filepath ) == 0 ) {
+                      mrb_filepath ) == 0 ) {
       return 0;
     }
   }
@@ -599,49 +603,49 @@ loaded_files_check( mrb_state *mrb, mrb_value filepath ) {
 
 static
 void
-loading_files_add( mrb_state *mrb, mrb_value filepath ) {
+loading_files_add( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrb_value loading_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\"_"));
   if ( mrb_nil_p(loading_files) ) loading_files = mrb_ary_new(mrb);
-  mrb_ary_push(mrb, loading_files, filepath);
+  mrb_ary_push(mrb, loading_files, mrb_filepath);
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\"_"), loading_files);
 }
 
 static
 void
-loaded_files_add( mrb_state *mrb, mrb_value filepath ) {
+loaded_files_add( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
-  mrb_ary_push(mrb, loaded_files, filepath);
+  mrb_ary_push(mrb, loaded_files, mrb_filepath);
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), loaded_files);
 }
 
 static
 mrb_value
-mrb_require( mrb_state *mrb, mrb_value filename ) {
+mrb_require( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   //printf("mrb_require\n");
 
-  mrb_value filepath = find_file(mrb, filename);
+  mrb_value filepath = find_file(mrb, mrb_filepath);
   if ( !mrb_nil_p(filepath) && loaded_files_check(mrb, filepath) ) {
-    loading_files_add(mrb, filepath);
-    load_file(mrb, filepath);
-    loaded_files_add(mrb, filepath);
+    loading_files_add(mrb, mrb_filepath);
+    load_file(mrb, mrb_filepath);
+    loaded_files_add(mrb, mrb_filepath);
     return mrb_true_value();
   }
   return mrb_false_value();
 }
 
 mrb_value
-mrb_f_require( mrb_state *mrb, mrb_value self ) {
+mrb_f_require( mrb_state *mrb, mrb_value /* self */ ) {
 
   //printf("mrb_f_require\n");
 
-  mrb_value filename;
-  mrb_get_args(mrb, "o", &filename);
-  if (mrb_type(filename) != MRB_TT_STRING) {
-    mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %S into String", filename);
+  mrb_value mrb_filename;
+  mrb_get_args(mrb, "o", &mrb_filename);
+  if (mrb_type(mrb_filename) != MRB_TT_STRING) {
+    mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %S into String", mrb_filename);
     return mrb_nil_value();
   }
-  return mrb_require(mrb, filename);
+  return mrb_require(mrb, mrb_filename);
 }
 
 static
@@ -674,7 +678,7 @@ mrb_mruby_require_gem_init( mrb_state* mrb ) {
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), mrb_ary_new(mrb));
 
   char env[MAXENVLEN] ;
-  if ( GetEnv( "MRUBY_REQUIRE", env, MAXENVLEN ) )
+  if ( GetEnv( "MRUBY_REQUIRE", env, MAXENVLEN ) ) {
     unsigned envlen = unsigned(strlen(env));
     unsigned i      = 0 ;
     while ( i < envlen ) {
