@@ -34,6 +34,7 @@
 
 #include "opcode.h"
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <sys/types.h>
@@ -537,6 +538,7 @@ load_file( mrb_state *mrb, mrb_value filepath ) {
   }
 }
 
+static
 mrb_value
 mrb_load( mrb_state *mrb, mrb_value filename ) {
 
@@ -547,6 +549,7 @@ mrb_load( mrb_state *mrb, mrb_value filename ) {
   return mrb_true_value(); // TODO: ??
 }
 
+static
 mrb_value
 mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
@@ -607,6 +610,7 @@ loaded_files_add( mrb_state *mrb, mrb_value filepath ) {
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), loaded_files);
 }
 
+static
 mrb_value
 mrb_require( mrb_state *mrb, mrb_value filename ) {
 
@@ -623,7 +627,7 @@ mrb_require( mrb_state *mrb, mrb_value filename ) {
 }
 
 mrb_value
-mrb_f_require( mrb_state *mrb, mrb_value self ) {
+mrb_f_require( mrb_state *mrb, mrb_value /* self */ ) {
 
   //printf("mrb_f_require\n");
 
