@@ -56,15 +56,15 @@
 
   static
   bool
-  ToFullPath( char const path[],
-              char       full_path[],
-              unsigned   max_len ) {
+  relativeToFullPath( char const path[],
+                      char       full_path[],
+                      unsigned   max_len ) {
     return GetFullPathNameA( path, max_len, full_path, NULL) > 0 ;
   }
 
   static
   bool
-  GetEnv( char const envName[], char out[], unsigned len ) {
+  GetEnvironmentToString( char const envName[], char out[], unsigned len ) {
     DWORD n = GetEnvironmentVariable(envName,out,DWORD(len));
     return n > 0 && n < DWORD(len) ;
   }
@@ -103,7 +103,7 @@
 
   static
   bool
-  GetEnv( char const envName[], char out[], unsigned len ) {
+  GetEnvironmentToString( char const envName[], char out[], unsigned len ) {
     char const * ptr = getenv( envName ) ;
     bool ok = ptr != NULL && strlen( ptr ) < len ;
     if ( ok ) strcpy( out, ptr ) ;
@@ -112,9 +112,9 @@
 
   static
   bool
-  ToFullPath( char const path[],
-              char       full_path[],
-              unsigned   max_len ) {
+  relativeToFullPath( char const path[],
+                      char       full_path[],
+                      unsigned   max_len ) {
     char buffer[PATH_MAX] ;
     if ( realpath(path, buffer) == NULL ) return false ;
     strncpy( full_path, buffer, max_len ) ;
@@ -156,7 +156,7 @@ envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
   mrb_value ary = mrb_ary_new(mrb);
 
   char env[MAXENVLEN] ;
-  if ( !GetEnv( name, env, MAXENVLEN ) ) return ary ;
+  if ( !GetEnvironmentToString( name, env, MAXENVLEN ) ) return ary ;
 
   long envlen = strlen(env);
   long i      = 0 ;
@@ -188,7 +188,7 @@ find_file_check( mrb_state *mrb,
   if ( mrb_nil_p(mrb_filepath) ) return mrb_nil_value();
 
   char full_path[MAXPATHLEN];
-  if ( !ToFullPath( RSTRING_PTR(mrb_filepath), full_path, MAXPATHLEN) ) return mrb_nil_value();
+  if ( !relativeToFullPath( RSTRING_PTR(mrb_filepath), full_path, MAXPATHLEN) ) return mrb_nil_value();
 
   FILE * fp = fopen(full_path, "r");
   if ( fp == NULL ) return mrb_nil_value();
@@ -382,7 +382,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   printf( "require:load_so_file: `%s`\n", filepath) ;
 
   char fullpath[MAXPATHLEN];
-  if ( !ToFullPath( filepath, fullpath, MAXPATHLEN) ) {
+  if ( !relativeToFullPath( filepath, fullpath, MAXPATHLEN) ) {
     char message[1024] ;
     snprintf( message, 1023, "failed to convert %s, to full path\n", filepath );
     mrb_raise(mrb, E_LOAD_ERROR, message );
@@ -456,7 +456,7 @@ unload_so_file(mrb_state *mrb, mrb_value mrb_filepath) {
 
   char const * filepath = RSTRING_PTR(mrb_filepath) ;
   char fullpath[MAXPATHLEN];
-  if ( !ToFullPath( filepath, fullpath, MAXPATHLEN) ) {
+  if ( !relativeToFullPath( filepath, fullpath, MAXPATHLEN) ) {
     char message[1024] ;
     snprintf( message, 1023, "failed to convert %s, to full path\n", filepath );
     mrb_raise(mrb, E_LOAD_ERROR, message );
@@ -657,7 +657,7 @@ mrb_init_load_path( mrb_state *mrb ) {
   mrb_value ary = envpath_to_mrb_ary(mrb, "MRBLIB");
 
   char env[MAXENVLEN] ;
-  if ( GetEnv( "MRBGEMS_ROOT", env, MAXENVLEN ) )
+  if ( GetEnvironmentToString( "MRBGEMS_ROOT", env, MAXENVLEN ) )
     mrb_ary_push(mrb, ary, mrb_str_new_cstr(mrb, env));
 #ifdef MRBGEMS_ROOT
   else
@@ -678,7 +678,7 @@ mrb_mruby_require_gem_init( mrb_state* mrb ) {
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$\""), mrb_ary_new(mrb));
 
   char env[MAXENVLEN] ;
-  if ( GetEnv( "MRUBY_REQUIRE", env, MAXENVLEN ) ) {
+  if ( GetEnvironmentToString( "MRUBY_REQUIRE", env, MAXENVLEN ) ) {
     long envlen = strlen(env);
     long i      = 0 ;
     while ( i < envlen ) {
