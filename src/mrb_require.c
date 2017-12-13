@@ -631,7 +631,7 @@ mrb_require( mrb_state *mrb, mrb_value filename ) {
 }
 
 mrb_value
-mrb_f_require( mrb_state *mrb, mrb_value self ) {
+mrb_f_require( mrb_state *mrb, mrb_value /* self */ ) {
 
   //printf("mrb_f_require\n");
 
