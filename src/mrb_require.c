@@ -4,6 +4,17 @@
 ** See Copyright Notice in mruby.h
 */
 
+#ifdef __GCC__
+#pragma GCC diagnostic ignored "-Wclass-varargs"
+#endif
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wclass-varargs"
+#endif
+
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64)
+  #define OS_WINDOWS
+#endif
+
 #include "mruby.h"
 #include "mruby/data.h"
 #include "mruby/string.h"
@@ -38,10 +49,11 @@
   #include <dlfcn.h>
 #endif
 
-#ifdef _WIN32
+#ifdef OS_WINDOWS
 
   #include <windows.h>
 
+  static
   bool
   ToFullPath( char const path[],
               char       full_path[],
@@ -49,12 +61,14 @@
     return GetFullPathNameA( path, max_len, full_path, NULL) > 0 ;
   }
 
+  static
   bool
   GetEnv( char const envName[], char out[], unsigned len ) {
     DWORD n = GetEnvironmentVariable(envName,out,DWORD(len));
     return n > 0 && n < DWORD(len) ;
   }
 
+  static
   void
   CheckError( char const lib[], mrb_state *mrb ) {
     // Get the error message, if any.
@@ -82,6 +96,7 @@
 #else
   #include <dlfcn.h>
 
+  static
   bool
   GetEnv( char const envName[], char out[], unsigned len ) {
     char const * ptr = getenv( envName ) ;
@@ -90,6 +105,7 @@
     return ok ;
   }
 
+  static
   bool
   ToFullPath( char const path[],
               char       full_path[],
@@ -100,6 +116,7 @@
     return strlen(buffer) <= max_len ;
   }
 
+  static
   void
   CheckError( char const lib[], mrb_state *mrb ) {
     char const * err = dlerror() ;
@@ -111,7 +128,7 @@
 
 #endif
 
-#if defined(_WIN32)
+#if defined(OS_WINDOWS)
   #define ENV_SEP ';'
 #else
   #define ENV_SEP ':'
@@ -220,7 +237,7 @@ find_file( mrb_state *mrb, mrb_value filename ) {
   }
 
   /* Absolute paths on Windows */
-#ifdef _WIN32
+#ifdef OS_WINDOWS
   if (fname[1] == ':') {
     FILE * fp = fopen(fname, "r");
     if ( fp == NULL ) goto not_found;
@@ -363,7 +380,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
-  #ifdef _WIN32
+  #ifdef OS_WINDOWS
   HMODULE handle = LoadLibrary(fullpath);
   #else
   void * handle = dlopen(fullpath, RTLD_LAZY|RTLD_GLOBAL);
@@ -389,7 +406,7 @@ load_so_file( mrb_state *mrb, mrb_value filepath ) {
 
   printf( "require:load_so_file attach entry\n") ;
 
-  #ifdef _WIN32
+  #ifdef OS_WINDOWS
   FARPROC addr_entry      = GetProcAddress(handle, entry);
   FARPROC addr_entry_irep = GetProcAddress(handle, entry_irep);
   #else
@@ -437,7 +454,7 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
     mrb_raise(mrb, E_LOAD_ERROR, message );
   }
 
-  #ifdef _WIN32
+  #ifdef OS_WINDOWS
   HMODULE handle = LoadLibrary(fullpath);
   #else
   void * handle = dlopen(fullpath, RTLD_LAZY|RTLD_GLOBAL);
@@ -458,7 +475,7 @@ unload_so_file(mrb_state *mrb, mrb_value filepath) {
   snprintf(entry, sizeof(entry)-1, "mrb_%s_gem_final", ptr);
   free(tmp);
 
-  #ifdef _WIN32
+  #ifdef OS_WINDOWS
   FARPROC addr_entry = GetProcAddress(handle, entry);
   #else
   void * addr_entry  = dlsym(handle, entry);
