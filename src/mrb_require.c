@@ -255,16 +255,16 @@ find_file( mrb_state *mrb, mrb_value mrb_filename ) {
     FILE * fp = fopen(fname, "r");
     if ( fp == NULL ) goto not_found;
     fclose(fp);
-    return filename;
+    return mrb_filename;
   }
 
   /* when a filename start with '.', $: = ['.'] */
   if ( *fname == '.' ) {
-    load_path = mrb_ary_new(mrb);
+    mrb_load_path = mrb_ary_new(mrb);
     mrb_ary_push(mrb, mrb_load_path, mrb_str_new_cstr(mrb, "."));
   }
 
-  for ( int i = 0; i < RARRAY_LEN(load_path); ++i ) {
+  for ( int i = 0; i < RARRAY_LEN(mrb_load_path); ++i ) {
     for ( int j = 0; j < RARRAY_LEN(exts); ++j ) {
       mrb_filepath = find_file_check( mrb,
                                       mrb_ary_entry(mrb_load_path, i),
@@ -454,7 +454,7 @@ unload_so_file(mrb_state *mrb, mrb_value mrb_filepath) {
   char entry[MAX_PATH] = {0} ;
   typedef void (*fn_mrb_gem_final)(mrb_state *mrb);
 
-  char const * filepath = RSTRING_PTR(filepath) ;
+  char const * filepath = RSTRING_PTR(mrb_filepath) ;
   char fullpath[MAXPATHLEN];
   if ( !ToFullPath( filepath, fullpath, MAXPATHLEN) ) {
     char message[1024] ;
@@ -565,7 +565,7 @@ mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
   mrb_value mrb_filename;
   mrb_get_args(mrb, "o", &mrb_filename);
-  if (mrb_type(filename) != MRB_TT_STRING) {
+  if (mrb_type(mrb_filename) != MRB_TT_STRING) {
     mrb_raisef(mrb, E_TYPE_ERROR, "can't convert %S into String", mrb_filename);
     return mrb_nil_value();
   }
