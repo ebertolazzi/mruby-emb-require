@@ -60,14 +60,14 @@
   static
   int
   relativeToFullPath( char const path[], char full_path[MAXPATHLEN] ) {
-    DWORD retval = GetFullPathName( path, MAXPATHLEN, full_path, NULL );
+    DWORD retval = GetFullPathNameA( path, MAXPATHLEN, full_path, NULL );
     return retval > 0 && retval < MAXPATHLEN ;
   }
 
   static
   int
   GetEnvironmentToString( char const envName[], char out[], unsigned len ) {
-    DWORD n = GetEnvironmentVariable(envName,out,(DWORD)len);
+    DWORD n = GetEnvironmentVariableA(envName,out,(DWORD)len);
     return n > 0 && n < (DWORD)len ;
   }
 
@@ -79,15 +79,15 @@
     printf("errorMessageID: %ld\n", errorMessageID);
 
     LPSTR messageBuffer = NULL;
-    size_t size = FormatMessage( FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                                 FORMAT_MESSAGE_FROM_SYSTEM |
-                                 FORMAT_MESSAGE_IGNORE_INSERTS,
-                                 NULL,
-                                 errorMessageID,
-                                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                                 (LPSTR)&messageBuffer,
-                                 0,
-                                 NULL );
+    size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                  FORMAT_MESSAGE_FROM_SYSTEM |
+                                  FORMAT_MESSAGE_IGNORE_INSERTS,
+                                  NULL,
+                                  errorMessageID,
+                                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                  (LPSTR)&messageBuffer,
+                                  0,
+                                  NULL );
 
     printf("failed to load DLL: %s\n", lib);
     mrb_raise( mrb, E_RUNTIME_ERROR, messageBuffer ) ;
