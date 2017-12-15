@@ -100,16 +100,16 @@
   #include <dlfcn.h>
 
   static
-  bool
+  int
   relativeToFullPath( char const path[], char full_path[MAXPATHLEN] ) {
     return realpath(path, full_path) != NULL ;
   }
 
   static
-  bool
+  int
   GetEnvironmentToString( char const envName[], char out[], unsigned len ) {
     char const * ptr = getenv( envName ) ;
-    bool ok = ptr != NULL && strlen( ptr ) < len ;
+    int ok = ptr != NULL && strlen( ptr ) < len ;
     if ( ok ) strcpy( out, ptr ) ;
     return ok ;
   }
