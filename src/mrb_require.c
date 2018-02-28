@@ -485,11 +485,28 @@ unload_so_file(mrb_state *mrb, mrb_value mrb_filepath) {
   }
 }
 
+
+static void
+mrb_load_fail(mrb_state *mrb, mrb_value path, const char *err)
+{
+  mrb_value mesg, exc;
+
+  mesg = mrb_str_new_cstr(mrb, err);
+  mrb_str_cat_lit(mrb, mesg, " -- ");
+  mrb_str_cat_str(mrb, mesg, path);
+  exc = mrb_funcall(mrb, mrb_obj_value(E_LOAD_ERROR), "new", 1, mesg);
+  mrb_iv_set(mrb, exc, mrb_intern_lit(mrb, "path"), path);
+
+  mrb_exc_raise(mrb, exc);
+}
+
 static
 void
 load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   //printf( "require:load_rb_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
+
+  int ai = mrb_gc_arena_save(mrb);
 
   char const * filepath = RSTRING_PTR(mrb_filepath);
   {
@@ -501,13 +518,11 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
     FILE *fp = fopen(filepath, "r");
     if (fp == NULL) {
     #endif
-      mrb_raisef(mrb, E_LOAD_ERROR, "can't load %S", mrb_filepath);
+      mrb_load_fail( mrb, filepath, "cannot load such file" );
       return;
     }
     fclose(fp);
   }
-
-  int ai = mrb_gc_arena_save(mrb); // ADDED
 
   mrbc_context * mrbc_ctx = mrbc_context_new(mrb);
 
@@ -518,13 +533,11 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   FILE * file = fopen(filepath, "r");
   #endif
 
-  mrbc_filename(mrb, mrbc_ctx, filepath);
-  // NON SERVE PIU?
-  //mrb_gv_set(mrb, mrb_intern(mrb, "$0", 2), mrb_filepath);
-  mrb_load_file_cxt(mrb, file, mrbc_ctx);
-  fclose(file);
+  mrbc_filename( mrb, mrbc_ctx, filepath );
+  mrb_load_file_cxt( mrb, file, mrbc_ctx );
+  fclose( file );
 
-  mrb_gc_arena_restore(mrb, ai); // ADDED
+  mrb_gc_arena_restore(mrb, ai);
 
   mrbc_context_free(mrb, mrbc_ctx);
 }
