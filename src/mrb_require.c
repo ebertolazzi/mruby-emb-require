@@ -536,8 +536,9 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   FILE * file = fopen(filepath, "r");
   #endif
 
-  #if 0
   mrbc_filename( mrb, mrbc_ctx, filepath );
+  mrb_gv_set(mrb, mrb_intern2(mrb, "$0", 2), filepath);
+  #if 0
   mrb_load_file_cxt( mrb, file, mrbc_ctx );
   #endif
 
