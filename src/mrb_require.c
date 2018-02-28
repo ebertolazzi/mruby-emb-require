@@ -539,14 +539,16 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrbc_filename( mrb, mrbc_ctx, filepath );
   #if 0
   mrb_gv_set(mrb, mrb_intern2(mrb, "$0", 2), mrb_filepath);
-  mrb_load_file_cxt( mrb, file, mrbc_ctx );
   #endif
+  mrb_value obj = mrb_load_file_cxt( mrb, file, mrbc_ctx );
 
   fclose( file );
 
+  if (mrb->exc) mrb_print_error(mrb);
+
   mrb_gc_arena_restore(mrb, ai);
 
-  mrbc_context_free(mrb, mrbc_ctx);
+  mrbc_context_free(mrb, mrbc_ctx );
 }
 
 static
