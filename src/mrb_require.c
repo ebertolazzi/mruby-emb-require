@@ -538,7 +538,7 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrbc_filename( mrb, mrbc_ctx, filepath );
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$0"), mrb_filepath);
   printf( "call mrb_load_file_cxt\n") ;
-  mrb_value obj = mrb_load_file_cxt( mrb, file, mrbc_ctx );
+  //mrb_value obj = mrb_load_file_cxt( mrb, file, mrbc_ctx );
   printf( "done mrb_load_file_cxt\n") ;
 
   mrbc_context_free(mrb, mrbc_ctx );
