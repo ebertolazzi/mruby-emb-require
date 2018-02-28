@@ -144,13 +144,13 @@ envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
   char env[MAXENVLEN];
   if ( !GetEnvironmentToString( name, env, MAXENVLEN ) ) return ary;
 
-  long envlen = strlen(env);
-  long i      = 0 ;
+  unsigned long envlen = strlen(env);
+  unsigned long i      = 0 ;
   while ( i < envlen ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
     if ( end == NULL ) end = env + envlen;
-    long len = end - ptr;
+    unsigned long len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len+1;
   }
