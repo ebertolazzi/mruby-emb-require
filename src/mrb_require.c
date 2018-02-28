@@ -71,6 +71,7 @@
     return n > 0 && n < (DWORD)len ;
   }
 
+  static
   void
   CheckError( char const lib[], mrb_state *mrb ) {
     // Get the error message, if any.
@@ -114,6 +115,7 @@
     return ok ;
   }
 
+  static
   void
   CheckError( char const lib[], mrb_state *mrb ) {
     char const * err = dlerror() ;
@@ -142,13 +144,13 @@ envpath_to_mrb_ary( mrb_state *mrb, char const name[] ) {
   char env[MAXENVLEN];
   if ( !GetEnvironmentToString( name, env, MAXENVLEN ) ) return ary;
 
-  size_t envlen = strlen(env);
-  size_t i      = 0 ;
+  long envlen = strlen(env);
+  long i      = 0 ;
   while ( i < envlen ) {
     char *ptr = env + i;
     char *end = strchr(ptr, ENV_SEP);
     if ( end == NULL ) end = env + envlen;
-    size_t len = end - ptr;
+    long len = end - ptr;
     mrb_ary_push(mrb, ary, mrb_str_new(mrb, ptr, len));
     i += len+1;
   }
@@ -207,7 +209,7 @@ static
 mrb_value
 find_file( mrb_state *mrb, mrb_value mrb_filename ) {
 
-  printf( "require:find_file: %s\n", RSTRING_PTR(filename)) ;
+  printf( "require:find_file: %s\n", RSTRING_PTR(mrb_filename)) ;
 
   mrb_value load_path = mrb_obj_dup(mrb, mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$:")));
 
