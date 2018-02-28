@@ -511,18 +511,6 @@ loading_files_add(mrb_state *mrb, mrb_value filepath)
 }
 
 static void
-loading_files_delete(mrb_state *mrb, mrb_value filepath)
-{
-  mrb_value loading_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\"_"));
-  if (!mrb_array_p(loading_files)) {
-    return;
-  }
-  mrb_funcall(mrb, loading_files, "delete", 1, filepath);
-
-  return;
-}
-
-static void
 loaded_files_add(mrb_state *mrb, mrb_value filepath)
 {
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
@@ -538,7 +526,6 @@ mrb_require(mrb_state *mrb, mrb_value filename)
     loading_files_add(mrb, filepath);
     load_file(mrb, filepath);
     loaded_files_add(mrb, filepath);
-    loading_files_delete(mrb, filepath);
     return mrb_true_value();
   }
 
