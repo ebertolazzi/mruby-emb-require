@@ -507,6 +507,8 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
     fclose(fp);
   }
 
+  int ai = mrb_gc_arena_save(mrb); // ADDED
+
   mrbc_context * mrbc_ctx = mrbc_context_new(mrb);
 
   #ifdef OS_WINDOWS
@@ -515,10 +517,14 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   #else
   FILE * file = fopen(filepath, "r");
   #endif
+
   mrbc_filename(mrb, mrbc_ctx, filepath);
-  mrb_gv_set(mrb, mrb_intern(mrb, "$0", 2), mrb_filepath);
+  // NON SERVE PIU?
+  //mrb_gv_set(mrb, mrb_intern(mrb, "$0", 2), mrb_filepath);
   mrb_load_file_cxt(mrb, file, mrbc_ctx);
   fclose(file);
+
+  mrb_gc_arena_restore(mrb, ai); // ADDED
 
   mrbc_context_free(mrb, mrbc_ctx);
 }
