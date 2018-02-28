@@ -509,7 +509,7 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   printf( "require:load_rb_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
 
-  int ai = mrb_gc_arena_save(mrb);
+  //int ai = mrb_gc_arena_save(mrb);
 
   char const * filepath = RSTRING_PTR(mrb_filepath);
   {
@@ -535,8 +535,10 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   #endif
 
   mrbc_context * mrbc_ctx = mrbc_context_new(mrb);
+
   mrbc_filename( mrb, mrbc_ctx, filepath );
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$0"), mrb_filepath);
+
   printf( "call mrb_load_file_cxt\n") ;
   mrb_value obj = mrb_load_file_cxt( mrb, file, mrbc_ctx );
   printf( "done mrb_load_file_cxt\n") ;
@@ -547,7 +549,7 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   if (mrb->exc) mrb_print_error(mrb);
 
-  mrb_gc_arena_restore(mrb, ai);
+  //mrb_gc_arena_restore(mrb, ai);
 
 }
 
