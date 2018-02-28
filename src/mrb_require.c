@@ -518,7 +518,7 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
     FILE *fp = fopen(filepath, "r");
     if (fp == NULL) {
     #endif
-      mrb_load_fail( mrb, filepath, "cannot load such file" );
+      mrb_load_fail( mrb, mrb_filepath, "cannot load such file" );
       return;
     }
     fclose(fp);
