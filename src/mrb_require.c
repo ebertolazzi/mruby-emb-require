@@ -509,6 +509,8 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   printf( "require:load_rb_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
 
+  return ;
+
   int ai = mrb_gc_arena_save(mrb);
 
   char const * filepath = RSTRING_PTR(mrb_filepath);
