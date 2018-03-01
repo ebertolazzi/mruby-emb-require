@@ -72,7 +72,7 @@
     // Get the error message, if any.
     DWORD errorMessageID = GetLastError();
     if ( errorMessageID == 0 ) return ; // No error message has been recorded
-    printf("errorMessageID: %ld\n", errorMessageID);
+    //printf("errorMessageID: %ld\n", errorMessageID);
 
     LPSTR messageBuffer = NULL;
     size_t size = FormatMessageA( FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -85,7 +85,7 @@
                                   0,
                                   NULL );
 
-    printf("failed to load DLL: %s\n", lib);
+    // printf("failed to load DLL: %s\n", lib);
     mrb_raise( mrb, E_RUNTIME_ERROR, messageBuffer ) ;
     // Free the buffer.
     LocalFree(messageBuffer);
@@ -115,7 +115,7 @@
   CheckError( char const lib[], mrb_state *mrb ) {
     char const * err = dlerror() ;
     if ( err != NULL ) {
-      printf("failed to load DLL: %s\n", lib);
+      // printf("failed to load DLL: %s\n", lib);
       mrb_raise( mrb, E_RUNTIME_ERROR, dlerror() );
     }
   }
@@ -204,7 +204,7 @@ static
 mrb_value
 find_file( mrb_state *mrb, mrb_value mrb_filename ) {
 
-  printf( "require:find_file: %s\n", RSTRING_PTR(mrb_filename)) ;
+  // printf( "require:find_file: %s\n", RSTRING_PTR(mrb_filename)) ;
 
   mrb_value load_path = mrb_obj_dup(mrb, mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$:")));
 
@@ -288,7 +288,7 @@ static
 void
 load_mrb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
-  printf( "require:load_mrb_file\n") ;
+  // printf( "require:load_mrb_file\n") ;
 
   char const * fpath = RSTRING_PTR(mrb_filepath);
   {
@@ -343,7 +343,7 @@ static
 void
 mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
 
-  printf( "require:mrb_load_irep_data\n") ;
+  // printf( "require:mrb_load_irep_data\n") ;
 
   int ai = mrb_gc_arena_save(mrb);
   mrb_irep *irep = mrb_read_irep(mrb,data);
@@ -376,7 +376,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   typedef void (*fn_mrb_gem_init)(mrb_state *mrb);
 
   char const * filepath = RSTRING_PTR(mrb_filepath);
-  printf( "require:load_so_file: %s\n", filepath) ;
+  // printf( "require:load_so_file: %s\n", filepath) ;
 
   #ifdef OS_WINDOWS
   HMODULE handle = LoadLibrary(filepath);
@@ -385,7 +385,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   #endif
 
   if ( handle == NULL ) {
-    printf( "require:load_so_file: null handle, check error\n" ) ;
+    // printf( "require:load_so_file: null handle, check error\n" ) ;
     CheckError( filepath, mrb ) ;
     char message[1024] ;
     snprintf( message, 1023, "failed to load %s, open return a NULL pointer\n", filepath );
@@ -402,7 +402,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   snprintf(entry_irep, sizeof(entry_irep)-1, "gem_mrblib_irep_%s", ptr);
   free(ptr);
 
-  printf( "require:load_so_file attach entry\n") ;
+  // printf( "require:load_so_file attach entry\n") ;
 
   #ifdef OS_WINDOWS
   FARPROC addr_entry      = GetProcAddress(handle, entry);
@@ -421,7 +421,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   }
 
   if ( addr_entry != NULL ) {
-    printf( "Attach %s from library %s\n", entry, mrb_filepath );
+    // printf( "Attach %s from library %s\n", entry, mrb_filepath );
     fn_mrb_gem_init fn = (fn_mrb_gem_init) addr_entry;
     int ai = mrb_gc_arena_save(mrb);
     fn(mrb);
@@ -429,7 +429,7 @@ load_so_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   }
 
   if ( addr_entry_irep != NULL ) {
-    printf( "Attach %s from library %s\n", entry_irep, mrb_filepath );
+    // printf( "Attach %s from library %s\n", entry_irep, mrb_filepath );
     uint8_t const * data = (uint8_t const *) addr_entry_irep;
     mrb_load_irep_data(mrb, data);
   }
@@ -446,7 +446,7 @@ unload_so_file(mrb_state *mrb, mrb_value mrb_filepath) {
 
   char const * filepath = RSTRING_PTR(mrb_filepath);
 
-  printf( "require:unload_so_file: %s\n", filepath) ;
+  // printf( "require:unload_so_file: %s\n", filepath) ;
 
   #ifdef OS_WINDOWS
   HMODULE handle = LoadLibrary(filepath);
@@ -502,7 +502,7 @@ static
 void
 load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
-  printf( "require:load_rb_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
+  // printf( "require:load_rb_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
 
   //int ai = mrb_gc_arena_save(mrb);
 
@@ -533,11 +533,7 @@ load_rb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 
   mrbc_filename( mrb, mrbc_ctx, filepath );
   mrb_gv_set(mrb, mrb_intern_cstr(mrb, "$0"), mrb_filepath);
-
-  printf( "call mrb_load_file_cxt\n") ;
   mrb_value obj = mrb_load_file_cxt( mrb, file, mrbc_ctx );
-  printf( "done mrb_load_file_cxt\n") ;
-
   mrbc_context_free(mrb, mrbc_ctx );
 
   fclose( file );
@@ -553,7 +549,7 @@ void
 load_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   char const * ext = strrchr(RSTRING_PTR(mrb_filepath), '.');
 
-  printf( "require:load_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
+  // printf( "require:load_file: %s\n", RSTRING_PTR(mrb_filepath)) ;
 
   if (!ext || strcmp(ext, ".rb") == 0) {
     load_rb_file(mrb, mrb_filepath);
@@ -572,7 +568,7 @@ load_file( mrb_state *mrb, mrb_value mrb_filepath ) {
 mrb_value
 mrb_load( mrb_state *mrb, mrb_value filename ) {
 
-  printf("mrb_load\n");
+  // printf("mrb_load\n");
 
   mrb_value mrb_filepath = find_file(mrb, filename);
   load_file(mrb, mrb_filepath);
@@ -582,7 +578,7 @@ mrb_load( mrb_state *mrb, mrb_value filename ) {
 mrb_value
 mrb_f_load( mrb_state *mrb, mrb_value self ) {
 
-  printf("mrb_f_load\n");
+  // printf("mrb_f_load\n");
 
   mrb_value mrb_filename;
   mrb_get_args(mrb, "o", &mrb_filename);
@@ -597,7 +593,7 @@ static
 int
 loaded_files_check( mrb_state *mrb, mrb_value mrb_filepath ) {
 
-  printf("loaded_files_check\n");
+  // printf("loaded_files_check\n");
 
   mrb_value loaded_files = mrb_gv_get(mrb, mrb_intern_cstr(mrb, "$\""));
 
@@ -642,7 +638,7 @@ loaded_files_add( mrb_state *mrb, mrb_value mrb_filepath ) {
 mrb_value
 mrb_require( mrb_state *mrb, mrb_value mrb_filename ) {
 
-  printf("mrb_require\n");
+  // printf("mrb_require\n");
 
   mrb_value mrb_filepath = find_file(mrb, mrb_filename);
   if ( !mrb_nil_p(mrb_filepath) && loaded_files_check(mrb, mrb_filepath) ) {
@@ -657,7 +653,7 @@ mrb_require( mrb_state *mrb, mrb_value mrb_filename ) {
 mrb_value
 mrb_f_require( mrb_state *mrb, mrb_value self ) {
 
-  printf("mrb_f_require\n");
+  // printf("mrb_f_require\n");
 
   mrb_value mrb_filename;
   mrb_get_args(mrb, "o", &mrb_filename);
@@ -672,7 +668,7 @@ static
 mrb_value
 mrb_init_load_path( mrb_state *mrb ) {
 
-  printf("mrb_init_load_path\n");
+  // printf("mrb_init_load_path\n");
 
   mrb_value ary = envpath_to_mrb_ary(mrb, "MRBLIB");
   char env[MAXENVLEN];
