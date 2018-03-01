@@ -18,7 +18,12 @@
   #define OS_WINDOWS
 #endif
 
-#define TARGET_CLASS(PROC) PROC->e.target_class
+// workaround for new mruby version
+#if MRUBY_RELEASE_MAJOR <= 1 && MRUBY_RELEASE_MINOR <= 3
+  #define TARGET_CLASS(PROC) PROC->target_class
+#else
+  #define TARGET_CLASS(PROC) PROC->e.target_class
+#endif
 
 #include "opcode.h"
 #include <stdio.h>
