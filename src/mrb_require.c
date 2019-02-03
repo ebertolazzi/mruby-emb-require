@@ -53,6 +53,10 @@
   #define MAXENVLEN 1024
 #endif
 
+#ifdef MKOP_A
+  #define USE_MRUBY_OLD_BYTE_CODE
+#endif
+
 #ifdef OS_WINDOWS
 
   #include <windows.h>
@@ -271,6 +275,7 @@ not_found:
   return mrb_nil_value();
 }
 
+#ifdef USE_MRUBY_OLD_BYTE_CODE
 static
 void
 replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
@@ -288,6 +293,7 @@ replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
     irep->ilen++;
   }
 }
+#endif
 
 static
 void
@@ -326,7 +332,9 @@ load_mrb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrb_gc_arena_restore(mrb, arena_idx);
 
   if (irep) {
+    #ifdef USE_MRUBY_OLD_BYTE_CODE
     replace_stop_with_return(mrb, irep);
+    #endif
     struct RProc * proc = mrb_proc_new(mrb, irep);
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
@@ -355,7 +363,9 @@ mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
   mrb_gc_arena_restore(mrb,ai);
 
   if (irep) {
+    #ifdef USE_MRUBY_OLD_BYTE_CODE
     replace_stop_with_return(mrb, irep);
+    #endif
     struct RProc *proc = mrb_proc_new(mrb, irep);
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
