@@ -53,6 +53,10 @@
   #define MAXENVLEN 1024
 #endif
 
+#ifdef MKOP_A
+  #define USE_MRUBY_OLD_BYTE_CODE
+#endif
+
 #ifdef OS_WINDOWS
 
   #include <windows.h>
@@ -269,23 +273,39 @@ not_found:
   return mrb_nil_value();
 }
 
-static
-void
-replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
-  if (irep->iseq[irep->ilen - 1] == MKOP_A(OP_STOP, 0)) {
-    if (irep->flags == MRB_ISEQ_NO_FREE) {
-      mrb_code* iseq = mrb_malloc(mrb, (irep->ilen + 1) * sizeof(mrb_code));
-      memcpy(iseq, irep->iseq, irep->ilen * sizeof(mrb_code));
-      irep->iseq = iseq;
-      irep->flags &= ~MRB_ISEQ_NO_FREE;
-    } else {
-      irep->iseq = mrb_realloc(mrb, irep->iseq, (irep->ilen + 1) * sizeof(mrb_code));
+
+#ifdef USE_MRUBY_OLD_BYTE_CODE
+  #if 0
+    static
+    void
+    replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
+      if (irep->iseq[irep->ilen - 1] == MKOP_A(OP_STOP, 0)) {
+        irep->iseq = mrb_realloc(mrb, irep->iseq, (irep->ilen + 1) * sizeof(mrb_code));
+        irep->iseq[irep->ilen - 1] = MKOP_A(OP_LOADNIL, 0);
+        irep->iseq[irep->ilen] = MKOP_AB(OP_RETURN, 0, OP_R_NORMAL);
+        irep->ilen++;
+      }
     }
-    irep->iseq[irep->ilen - 1] = MKOP_A(OP_LOADNIL, 0);
-    irep->iseq[irep->ilen] = MKOP_AB(OP_RETURN, 0, OP_R_NORMAL);
-    irep->ilen++;
-  }
-}
+  #else
+    static
+    void
+    replace_stop_with_return( mrb_state *mrb, mrb_irep *irep ) {
+      if (irep->iseq[irep->ilen - 1] == MKOP_A(OP_STOP, 0)) {
+        if (irep->flags == MRB_ISEQ_NO_FREE) {
+          mrb_code* iseq = mrb_malloc(mrb, (irep->ilen + 1) * sizeof(mrb_code));
+          memcpy(iseq, irep->iseq, irep->ilen * sizeof(mrb_code));
+          irep->iseq = iseq;
+          irep->flags &= ~MRB_ISEQ_NO_FREE;
+        } else {
+          irep->iseq = mrb_realloc(mrb, irep->iseq, (irep->ilen + 1) * sizeof(mrb_code));
+        }
+        irep->iseq[irep->ilen - 1] = MKOP_A(OP_LOADNIL, 0);
+        irep->iseq[irep->ilen] = MKOP_AB(OP_RETURN, 0, OP_R_NORMAL);
+        irep->ilen++;
+      }
+    }
+  #endif
+#endif
 
 static
 void
@@ -324,7 +344,9 @@ load_mrb_file( mrb_state *mrb, mrb_value mrb_filepath ) {
   mrb_gc_arena_restore(mrb, arena_idx);
 
   if (irep) {
+    #ifdef USE_MRUBY_OLD_BYTE_CODE
     replace_stop_with_return(mrb, irep);
+    #endif
     struct RProc * proc = mrb_proc_new(mrb, irep);
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
@@ -353,7 +375,9 @@ mrb_load_irep_data( mrb_state* mrb, const uint8_t* data ) {
   mrb_gc_arena_restore(mrb,ai);
 
   if (irep) {
+    #ifdef USE_MRUBY_OLD_BYTE_CODE
     replace_stop_with_return(mrb, irep);
+    #endif
     struct RProc *proc = mrb_proc_new(mrb, irep);
     TARGET_CLASS(proc) = mrb->object_class; // changed RProc with a union
 
