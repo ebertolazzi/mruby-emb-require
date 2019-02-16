@@ -4,7 +4,7 @@
 ** See Copyright Notice in mruby.h
 */
 
-#if 1
+#if 0
 #define DEBUG_MESSAGE(A) printf( A );
 #else
 #define DEBUG_MESSAGE(A)
